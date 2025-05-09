@@ -1,0 +1,10 @@
+[workspace]
+resolver = "1"
+members = ["oracle", "frontend", "oracle-api"]
+
+[workspace.dependencies]
+bincode = { version="2", features=["serde"] }
+serde = { version = "1", features = ["derive"] }
+tokio-util = "0.7"
+futures = "0.3"
+log = "0.4"
