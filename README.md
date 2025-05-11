@@ -19,3 +19,4 @@ To set it up, run:
   It's an odd place to suggest since you'd almost always press enter after typing the period, which messes up your comment.
 - Leo test fails if credits.aleo is a dependency
 - Leo CLI overhaul uses explorer as API default, default should be implemented in a different way.
+- Provable SDK create-leo-app tutorial links to the an old tutorial.

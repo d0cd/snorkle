@@ -1,0 +1,37 @@
+.container {
+    max-width: 850px;
+}
+
+.record-decrypt-container {
+  max-width: 900px;
+  margin: 40px auto 0 auto;
+  padding: 0 16px;
+}
+
+.record-decrypt-card {
+  background: #18181c !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.15);
+  border: 1px solid #222 !important;
+}
+
+.decrypted-record-textarea {
+  font-family: 'Fira Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 16px;
+  background: #18181c !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  border: 1.5px solid #333 !important;
+  padding: 16px !important;
+  min-height: 180px;
+}
+
+@media (max-width: 600px) {
+  .record-decrypt-container {
+    padding: 0 4px;
+  }
+  .decrypted-record-textarea {
+    font-size: 14px;
+    padding: 8px !important;
+  }
+}

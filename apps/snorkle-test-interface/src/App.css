@@ -1,42 +1,35 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/*
+ * Input (disabled) - Make box appear not disabled
+ *
+ * https://www.w3schools.com/cssref/pr_class_cursor.asp
+ */
+input[type="text"]:disabled {
+    cursor: text;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+@font-face {
+    font-family: "AleoSans";
+    src: url("../public/AleofontSans-Regular.otf") format("opentype");
+    font-weight: normal;
+    font-style: normal;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.headerDark {
+    font-family: "AleoSans";
+    color: white;
+    font-size:32px;
+    margin-left:2rem;
+    a {
+        color: white;
+    }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+.headerLight {
+    font-family: "AleoSans";
+    color: black;
+    font-size:32px;
+    margin-left:2rem;
+    a{
+        color: black;
+    }
 }
