@@ -8,6 +8,11 @@
       "name": "credits.aleo",
       "location": "network",
       "path": null
+    },
+    {
+      "name": "proto_snorkle_oracle_000.aleo",
+      "location": "local",
+      "path": "../proto_snorkle_oracle_000"
     }
   ],
   "dev_dependencies": null

@@ -1,5 +1,15 @@
 import credits.aleo;
+import proto_snorkle_oracle_000.aleo;
 program proto_snorkle_bet_000.aleo;
+
+struct EventData:
+    left_is_winner as boolean;
+
+struct Event:
+    id as field;
+    emitter as address;
+    block_height as u32;
+    data as EventData;
 
 struct Wager:
     event_id as field;
@@ -102,30 +112,33 @@ finalize make_bet:
     input r1 as Bet.public;
     input r2 as Wager.public;
     input r3 as Wager.public;
-    contains all_bets[r0] into r4;
+    contains proto_snorkle_oracle_000.aleo/events[r1.event_id] into r4;
     not r4 into r5;
     assert.eq r5 true;
-    contains confirmed_wagers[r1.wager_key_one] into r6;
+    contains all_bets[r0] into r6;
     not r6 into r7;
     assert.eq r7 true;
-    contains confirmed_wagers[r1.wager_key_two] into r8;
+    contains confirmed_wagers[r1.wager_key_one] into r8;
     not r8 into r9;
     assert.eq r9 true;
-    get.or_use balances[r1.bettor_one] 0u64 into r10;
-    get.or_use balances[r1.bettor_two] 0u64 into r11;
-    get.or_use balances[proto_snorkle_bet_000.aleo] 0u64 into r12;
-    sub r10 r2.bet into r13;
-    set r13 into balances[r1.bettor_one];
-    sub r11 r3.bet into r14;
-    set r14 into balances[r1.bettor_two];
-    add r12 r2.bet into r15;
-    add r15 r3.bet into r16;
-    set r16 into balances[proto_snorkle_bet_000.aleo];
+    contains confirmed_wagers[r1.wager_key_two] into r10;
+    not r10 into r11;
+    assert.eq r11 true;
+    get.or_use balances[r1.bettor_one] 0u64 into r12;
+    get.or_use balances[r1.bettor_two] 0u64 into r13;
+    get.or_use balances[proto_snorkle_bet_000.aleo] 0u64 into r14;
+    sub r12 r2.bet into r15;
+    set r15 into balances[r1.bettor_one];
+    sub r13 r3.bet into r16;
+    set r16 into balances[r1.bettor_two];
+    add r14 r2.bet into r17;
+    add r17 r3.bet into r18;
+    set r18 into balances[proto_snorkle_bet_000.aleo];
     set r1 into all_bets[r0];
-    cast r2 r0 into r17 as WagerEntry;
-    set r17 into confirmed_wagers[r1.wager_key_one];
-    cast r3 r0 into r18 as WagerEntry;
-    set r18 into confirmed_wagers[r1.wager_key_two];
+    cast r2 r0 into r19 as WagerEntry;
+    set r19 into confirmed_wagers[r1.wager_key_one];
+    cast r3 r0 into r20 as WagerEntry;
+    set r20 into confirmed_wagers[r1.wager_key_two];
 
 function resolve_bet:
     input r0 as field.private;
@@ -138,17 +151,18 @@ finalize resolve_bet:
     not r1 into r2;
     assert.eq r2 true;
     get all_bets[r0] into r3;
-    ternary true r3.bettor_one r3.bettor_two into r4;
-    get.or_use balances[proto_snorkle_bet_000.aleo] 0u64 into r5;
-    get.or_use balances[r4] 0u64 into r6;
-    get.or_use balances[r3.facilitator] 0u64 into r7;
-    sub r5 r3.total_to_win into r8;
-    sub r8 r3.total_vig into r9;
-    set r9 into balances[proto_snorkle_bet_000.aleo];
-    add r6 r3.total_to_win into r10;
-    set r10 into balances[r4];
-    add r7 r3.total_vig into r11;
-    set r11 into balances[r3.facilitator];
+    get proto_snorkle_oracle_000.aleo/events[r3.event_id] into r4;
+    ternary r4.data.left_is_winner r3.bettor_one r3.bettor_two into r5;
+    get.or_use balances[proto_snorkle_bet_000.aleo] 0u64 into r6;
+    get.or_use balances[r5] 0u64 into r7;
+    get.or_use balances[r3.facilitator] 0u64 into r8;
+    sub r6 r3.total_to_win into r9;
+    sub r9 r3.total_vig into r10;
+    set r10 into balances[proto_snorkle_bet_000.aleo];
+    add r7 r3.total_to_win into r11;
+    set r11 into balances[r5];
+    add r8 r3.total_vig into r12;
+    set r12 into balances[r3.facilitator];
     set true into resolved_bets[r0];
 
 function withdraw:

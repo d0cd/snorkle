@@ -1,10 +1,12 @@
 // The 'proto_snorkle_bet_000' program.
-// This is a first attempt at a betting contract.
+// This is a first attempt at implementing two-sided bets.
+// The state is public.
 
 import credits.aleo;
+import proto_snorkle_oracle_000.aleo;
 
 program proto_snorkle_bet_000.aleo {
-    
+
     // A wager that is placed on a bet.
     struct Wager {
         // The ID of the event.
@@ -169,7 +171,8 @@ program proto_snorkle_bet_000.aleo {
         wager_one: Wager,
         wager_two: Wager,
     ) {
-        // TODO: Check that the oracle is valid.
+        // Check that the event has not already been emitted.
+        assert(!Mapping::contains(proto_snorkle_oracle_000.aleo/events, bet.event_id));
 
         // Check that the bet does not already exist.
         // TODO (@d0cd): Prove the non-existence is implied by the checks below.
@@ -194,6 +197,7 @@ program proto_snorkle_bet_000.aleo {
     }
 
     // Resolve a bet.
+    // TODO (@d0cd): Handle a push.
     async transition resolve_bet(bet_id: field) -> Future {
         return resolve_bet_(bet_id);
     } 
@@ -205,8 +209,9 @@ program proto_snorkle_bet_000.aleo {
         // Get the bet data.
         let bet: Bet = all_bets.get(bet_id);
 
-        // TODO (@d0cd) get the oracle data.
-        let one_is_winner: bool = true;
+        // Get the oracle data.
+        // Note: This will fail if the event does not exist.
+        let one_is_winner: bool = Mapping::get(proto_snorkle_oracle_000.aleo/events, bet.event_id).data.left_is_winner;
 
         // Select the winner.
         let winner: address = one_is_winner ? bet.bettor_one : bet.bettor_two;
