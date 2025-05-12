@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import {Button, Card, Col, Form, Input, Row, Result, Spin, Switch} from "antd";
+import { Button, Card, Form, Input, Result, Space, Switch } from "antd";
 import axios from "axios";
 import { useNetwork } from "../../NetworkContext";
+import { KeyDropdown } from "../../components/KeyDropdown";
+import { CopyButton } from "../../components/CopyButton";
 
 export const Join = () => {
     const [joinFeeRecord, setJoinFeeRecord] = useState(null);
@@ -120,6 +122,12 @@ export const Join = () => {
         return privateKey;
     };
 
+    const handleDropdownSelect = (val) => {
+        setPrivateKey(val);
+        setTransactionID(null);
+        setJoinError(null);
+    };
+
     const layout = { labelCol: { span: 5 }, wrapperCol: { span: 21 } };
     const privateKeyString = () => (privateKey !== null ? privateKey : "");
     const feeRecordString = () => (joinFeeRecord !== null ? joinFeeRecord : "");
@@ -169,76 +177,70 @@ export const Join = () => {
                     valuePropName="checked"
                     initialValue={false}
                 >
-                    <Switch onChange={setPrivateFee} />
+                    <Switch
+                        checked={privateFee}
+                        onChange={setPrivateFee}
+                    />
                 </Form.Item>
-                {privateFee && (
-                    <Form.Item
-                        label="Fee Record"
-                        name="fee_record"
-                        colon={false}
-                        validateStatus={status}
-                    >
-                        <Input.TextArea
-                            name="Fee Record"
-                            size="small"
-                            placeholder="Record used to pay join fee"
-                            allowClear
-                            onChange={onJoinFeeRecordChange}
-                            value={feeRecordString()}
-                        />
-                    </Form.Item>
-                )}
                 <Form.Item
-                    label="Private Key"
-                    name="private_key"
+                    label="Fee Record"
                     colon={false}
                     validateStatus={status}
                 >
                     <Input.TextArea
-                        name="private_key"
+                        name="Fee Record"
                         size="small"
-                        placeholder="Private Key"
+                        placeholder="Record used to pay join fee"
+                        allowClear
+                        onChange={onJoinFeeRecordChange}
+                        value={feeRecordString()}
+                    />
+                </Form.Item>
+                <Form.Item
+                    label="Private Key"
+                    colon={false}
+                    validateStatus={status}
+                >
+                    <Input
+                        name="privateKey"
+                        size="middle"
+                        placeholder="Private key"
                         allowClear
                         onChange={onPrivateKeyChange}
                         value={privateKeyString()}
+                        addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
                     />
                 </Form.Item>
-                <Row justify="center">
-                    <Col justify="center">
-                        <Button
-                            type="primary"
-                            size="middle"
-                            onClick={join}
-                            loading={loading}
-                        >
-                            Join
-                        </Button>
-                    </Col>
-                </Row>
+                <Form.Item>
+                    <Button
+                        type="primary"
+                        size="middle"
+                        onClick={join}
+                        loading={loading}
+                    >
+                        Join
+                    </Button>
+                </Form.Item>
             </Form>
-            <Row
-                justify="center"
-                gutter={[16, 32]}
-                style={{ marginTop: "48px" }}
-            >
-                {loading === true && (
-                    <Spin tip="Joining Records..." size="large" />
-                )}
-                {transactionID !== null && (
-                    <Result
-                        status="success"
-                        title="Join Successful!"
-                        subTitle={"Transaction ID: " + transactionIDString()}
-                    />
-                )}
-                {joinError !== null && (
-                    <Result
-                        status="error"
-                        title="Join Error"
-                        subTitle={"Error: " + joinErrorString()}
-                    />
-                )}
-            </Row>
+            {transactionID !== null && (
+                <Form {...layout}>
+                    <Form.Item
+                        label="Transaction ID"
+                        colon={false}
+                    >
+                        <Input
+                            size="large"
+                            placeholder="Transaction ID"
+                            value={transactionIDString()}
+                            disabled
+                            addonAfter={<CopyButton data={transactionIDString()} />}
+                        />
+                    </Form.Item>
+                </Form>
+            )}
+            {joinError !== null && (
+                <Result status="error" title="Error" subTitle={joinErrorString()} />
+            )}
         </Card>
     );
 };

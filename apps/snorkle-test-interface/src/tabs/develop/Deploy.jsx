@@ -16,10 +16,9 @@ import { CodeEditor } from "./execute/CodeEditor.jsx";
 import { useAleoWASM } from "../../aleo-wasm-hook.js";
 import axios from "axios";
 import { useNetwork } from "../../NetworkContext";
-
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const Deploy = () => {
-
     const [form] = Form.useForm();
     const [aleoWASM] = useAleoWASM();
     const [deploymentFeeRecord, setDeploymentFeeRecord] = useState(null);
@@ -143,22 +142,6 @@ export const Deploy = () => {
         });
     };
 
-    const demo = async () => {
-        setFeeLoading(false);
-        setLoading(false);
-        setTransactionID(null);
-        setDeploymentError(null);
-        setDeploymentFeeEstimate("");
-        await onLoadProgram(
-            "program hello_hello.aleo;\n" +
-                "\n" +
-                "function hello:\n" +
-                "    input r0 as u32.public;\n" +
-                "    input r1 as u32.private;\n" +
-                "    add r0 r1 into r2;\n" +
-                "    output r2 as u32.private;\n",
-        );
-    };
     const onLoadProgram = async (value) => {
         if (value) {
             form.setFieldsValue({
@@ -176,9 +159,6 @@ export const Deploy = () => {
     };
 
     const onProgramChange = (value) => {
-        // if (event.target.value !== null) {
-        //     setProgram(event.target.value);
-        // }
         setProgram(value);
         setTransactionID(null);
         setDeploymentError(null);
@@ -206,6 +186,13 @@ export const Deploy = () => {
         return privateKey;
     };
 
+    const handleDropdownSelect = (val) => {
+        setPrivateKey(val);
+        setTransactionID(null);
+        setDeploymentError(null);
+        setDeploymentFeeEstimate("");
+    };
+
     const layout = { labelCol: { span: 5 }, wrapperCol: { span: 21 } };
     const privateKeyString = () => (privateKey !== null ? privateKey : "");
     const programString = () => (program !== null ? program : "");
@@ -216,60 +203,56 @@ export const Deploy = () => {
     const deploymentErrorString = () =>
         deploymentError !== null ? deploymentError : "";
     const feeString = () => deploymentFeeEstimate ? deploymentFeeEstimate : "";
-    const generateKey = () => {
-        const newKey = new aleoWASM.PrivateKey().to_string()
-        form.setFieldValue(
-            "private_key",
-            newKey
-        );
 
-        setPrivateKey(newKey);
-        form.validateFields(["private_key"]);
-    };
     return (
         <Card
             title="Deploy Program"
             style={{ width: "100%"}}
-            extra={
-                <Button
-                    type="primary"
-                    size="middle"
-                    onClick={demo}
-                >
-                    Insert Demo Program
-                </Button>
-            }
         >
             {contextHolder}
             <Form
                 form={form}
                 {...layout}>
                 <Divider />
-                    <Form.Item
-                        label="Program"
-                        name="program"
-                        tooltip={"This must be an Aleo Instructions program."}
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please input or load an Aleo program",
-                            },
-                        ]}
-                    >
-                        <CodeEditor onChange={onProgramChange} />
-                    </Form.Item>
-                <Divider />
                 <Form.Item
-                    label="Private Key"
-                    name="private_key"
+                    label="Program"
                     colon={false}
                     validateStatus={status}
                 >
-                    <Input.Search
-                            enterButton="Generate Random Key"
-                            onSearch={generateKey}
-                            onChange={onPrivateKeyChange}
-                        />
+                    <CodeEditor
+                        value={programString()}
+                        onChange={onProgramChange}
+                        language="aleo"
+                    />
+                </Form.Item>
+                <Form.Item
+                    label="Private Key"
+                    colon={false}
+                    validateStatus={status}
+                >
+                    <Input
+                        name="privateKey"
+                        size="middle"
+                        placeholder="Private key"
+                        allowClear
+                        onChange={onPrivateKeyChange}
+                        value={privateKeyString()}
+                        addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
+                    />
+                </Form.Item>
+                <Form.Item
+                    label="Fee Record"
+                    colon={false}
+                    validateStatus={status}
+                >
+                    <Input.TextArea
+                        name="feeRecord"
+                        size="small"
+                        placeholder="Fee record"
+                        allowClear
+                        onChange={onDeploymentFeeRecordChange}
+                        value={feeRecordString()}
+                    />
                 </Form.Item>
                 <Form.Item
                     label="Private Fee"
@@ -277,27 +260,13 @@ export const Deploy = () => {
                     valuePropName="checked"
                     initialValue={false}
                 >
-                    <Switch onChange={setPrivateFee} />
+                    <Switch
+                        checked={privateFee}
+                        onChange={setPrivateFee}
+                    />
                 </Form.Item>
-                {privateFee && (
-                    <Form.Item
-                        label="Fee Record"
-                        name="fee_record"
-                        colon={false}
-                        validateStatus={status}
-                    >
-                        <Input.TextArea
-                            name="Fee Record"
-                            size="small"
-                            placeholder="Record used to pay deployment fee"
-                            allowClear
-                            onChange={onDeploymentFeeRecordChange}
-                            value={feeRecordString()}
-                        />
-                    </Form.Item>
-                )}
-                <Row justify="center">
-                    <Col justify="center">
+                <Form.Item>
+                    <Space>
                         <Button
                             type="primary"
                             size="middle"
@@ -306,42 +275,36 @@ export const Deploy = () => {
                         >
                             Deploy
                         </Button>
-                    </Col>
-                    <Col justify="center">
                         <Button
-                            type="primary"
                             size="middle"
                             onClick={estimate}
                             loading={feeLoading}
                         >
                             Estimate Fee
                         </Button>
-                    </Col>
-                </Row>
+                    </Space>
+                </Form.Item>
             </Form>
-            <Row
-                justify="center"
-                gutter={[16, 32]}
-                style={{ marginTop: "48px" }}
-            >
-                {loading === true && (
-                    <Spin tip="Deploying Program..." size="large" />
-                )}
-                {transactionID !== null && (
-                    <Result
-                        status="success"
-                        title="Deployment Successful!"
-                        subTitle={"Transaction ID: " + transactionIDString()}
-                    />
-                )}
-                {deploymentError !== null && (
-                    <Result
-                        status="error"
-                        title="Deployment Error"
-                        subTitle={"Error: " + deploymentErrorString()}
-                    />
-                )}
-            </Row>
+            {transactionID !== null && (
+                <Form {...layout}>
+                    <Divider />
+                    <Form.Item
+                        label="Transaction ID"
+                        colon={false}
+                    >
+                        <Input
+                            size="large"
+                            placeholder="Transaction ID"
+                            value={transactionIDString()}
+                            disabled
+                            addonAfter={<CopyButton data={transactionIDString()} />}
+                        />
+                    </Form.Item>
+                </Form>
+            )}
+            {deploymentError !== null && (
+                <Result status="error" title="Error" subTitle={deploymentErrorString()} />
+            )}
         </Card>
     );
 };

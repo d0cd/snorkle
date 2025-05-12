@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Card, Divider, Form, Input } from "antd";
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const AccountFromPrivateKey = () => {
     const [accountFromPrivateKey, setAccountFromPrivateKey] = useState(null);
+    const [inputValue, setInputValue] = useState("");
     const [aleo] = useAleoWASM();
 
     const onChange = (event) => {
+        setInputValue(event.target.value);
         setAccountFromPrivateKey(null);
         try {
             setAccountFromPrivateKey(
@@ -15,6 +18,17 @@ export const AccountFromPrivateKey = () => {
             );
         } catch (error) {
             console.error(error);
+        }
+    };
+
+    const handleDropdownSelect = (val) => {
+        setInputValue(val);
+        try {
+            setAccountFromPrivateKey(
+                aleo.PrivateKey.from_string(val),
+            );
+        } catch (error) {
+            setAccountFromPrivateKey(null);
         }
     };
 
@@ -43,6 +57,8 @@ export const AccountFromPrivateKey = () => {
                             placeholder="Private Key"
                             allowClear
                             onChange={onChange}
+                            value={inputValue}
+                            addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
                         />
                     </Form.Item>
                 </Form>

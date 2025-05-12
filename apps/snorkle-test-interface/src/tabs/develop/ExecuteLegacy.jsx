@@ -18,6 +18,8 @@ import axios from "axios";
 import { useAleoWASM } from "../../aleo-wasm-hook.js";
 import { CodeEditor } from "./execute/CodeEditor.jsx";
 import { useNetwork } from "../../NetworkContext";
+import { KeyDropdown } from "../../components/KeyDropdown";
+import { CopyButton } from "../../components/CopyButton";
 
 export const ExecuteLegacy = () => {
     const [form] = Form.useForm();
@@ -229,36 +231,6 @@ export const ExecuteLegacy = () => {
         }
     };
 
-    const demo = async () => {
-        setLoading(false);
-        setProgramResponse(null);
-        setTransactionID(null);
-        setExecutionError(null);
-        setTip("Executing Program...");
-        setProgramID("hello_hello.aleo");
-        setProgram(
-            "program hello_hello.aleo;\n" +
-                "\n" +
-                "function hello:\n" +
-                "    input r0 as u32.public;\n" +
-                "    input r1 as u32.private;\n" +
-                "    add r0 r1 into r2;\n" +
-                "    output r2 as u32.private;\n",
-        );
-        setInputs("5u32 5u32");
-        setFunctionID("hello");
-    };
-
-    // Returns the program id if the user changes it or the "Demo" button is clicked.
-    const onChange = (event) => {
-        if (event.target.value !== null) {
-            setProgramID(event.target.value);
-        }
-        setTransactionID(null);
-        return programID;
-    };
-
-    // Returns the program id if the user changes it or the "Demo" button is clicked.
     const onUrlChange = (event) => {
         if (event.target.value !== null) {
             setExecuteUrl(event.target.value);
@@ -271,18 +243,17 @@ export const ExecuteLegacy = () => {
             setFunctionID(event.target.value);
         }
         setTransactionID(null);
-        setProgramResponse(null);
         setExecutionError(null);
+        setProgramResponse(null);
         return functionID;
     };
 
-    const onProgramChange = (event) => {
-        if (event.target.value !== null) {
-            setProgram(event.target.value);
-        }
+    const onProgramChange = (value) => {
+        setProgram(value);
         setTransactionID(null);
-        setProgramResponse(null);
         setExecutionError(null);
+        setProgramResponse(null);
+        getProgramInputs();
         return program;
     };
 
@@ -291,8 +262,8 @@ export const ExecuteLegacy = () => {
             setExecutionFee(event.target.value);
         }
         setTransactionID(null);
-        setProgramResponse(null);
         setExecutionError(null);
+        setProgramResponse(null);
         return executionFee;
     };
 
@@ -301,8 +272,8 @@ export const ExecuteLegacy = () => {
             setExecutionFeeRecord(event.target.value);
         }
         setTransactionID(null);
-        setProgramResponse(null);
         setExecutionError(null);
+        setProgramResponse(null);
         return executionFeeRecord;
     };
 
@@ -311,8 +282,8 @@ export const ExecuteLegacy = () => {
             setInputs(event.target.value);
         }
         setTransactionID(null);
-        setProgramResponse(null);
         setExecutionError(null);
+        setProgramResponse(null);
         return inputs;
     };
 
@@ -321,55 +292,44 @@ export const ExecuteLegacy = () => {
             setPrivateKey(event.target.value);
         }
         setTransactionID(null);
-        setProgramResponse(null);
         setExecutionError(null);
+        setProgramResponse(null);
         return privateKey;
     };
 
-    // Calls `tryRequest` when the search bar input is entered.
-    const onSearch = (value) => {
-        setFeeLoading(false);
-        setLoading(false);
-        setProgramResponse(null);
+    const handleDropdownSelect = (val) => {
+        setPrivateKey(val);
         setTransactionID(null);
         setExecutionError(null);
-        setTip("Executing Program...");
-        try {
-            tryRequest(value);
-        } catch (error) {
-            console.error(error);
-        }
+        setProgramResponse(null);
     };
 
-    // Attempts to request the program bytecode with the given program id.
-    const tryRequest = (id) => {
-        setProgramID(id);
+    const onSearch = (value) => {
+        setProgramID(null);
+        setProgram(null);
+        setTransactionID(null);
+        setExecutionError(null);
+        setProgramResponse(null);
         try {
-            if (id) {
+            if (value) {
                 axios
-                    .get(`${endpointUrl}/testnet/program/${id}`)
+                    .get(`${endpointUrl}/${networkString}/program/${value}`)
                     .then((response) => {
-                        setStatus("success");
+                        setProgramID(value);
                         setProgram(response.data);
+                        getProgramInputs();
                     })
                     .catch((error) => {
-                        // Reset the program text to `null` if the program id does not exist.
-                        setProgram(null);
-                        setStatus("error");
                         console.error(error);
+                        setExecutionError("Program not found");
                     });
-            } else {
-                // Reset the program text if the user clears the search bar.
-                setProgram(null);
-                // If the search bar is empty reset the status to "".
-                setStatus("");
             }
         } catch (error) {
             console.error(error);
         }
     };
 
-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
+    const layout = { labelCol: { span: 5 }, wrapperCol: { span: 21 } };
     const functionIDString = () => (functionID !== null ? functionID : "");
     const inputsString = () => (inputs !== null ? inputs : "");
     const privateKeyString = () => (privateKey !== null ? privateKey : "");
@@ -389,60 +349,42 @@ export const ExecuteLegacy = () => {
         <Card
             title="Execute Program"
             style={{ width: "100%" }}
-            extra={
-                <Button
-                    type="primary"
-                    size="middle"
-                    onClick={demo}
-                >
-                    Insert Demo Program
-                </Button>
-            }
         >
             {contextHolder}
-            <Form
-                form={form}
-                {...layout}>
+            <Form {...layout}>
                 <Form.Item
                     label="Program ID"
                     colon={false}
                     validateStatus={status}
                 >
                     <Input.Search
-                        name="program_id"
-                        size="large"
+                        name="programID"
+                        size="middle"
                         placeholder="Program ID"
                         allowClear
                         onSearch={onSearch}
-                        onChange={onChange}
-                        value={programIDString()}
                     />
                 </Form.Item>
-                <Divider />
                 <Form.Item
                     label="Program"
-                    name="program"
-                    tooltip={"This must be an Aleo Instructions program."}
-                    rules={[
-                        {
-                            required: true,
-                            message: "Please input or load an Aleo program",
-                        },
-                    ]}
+                    colon={false}
+                    validateStatus={status}
                 >
-                    <CodeEditor onChange={onProgramChange} />
+                    <CodeEditor
+                        value={programString()}
+                        onChange={onProgramChange}
+                        language="aleo"
+                    />
                 </Form.Item>
-                <Divider />
                 <Form.Item
                     label="Function"
-                    name="function"
                     colon={false}
                     validateStatus={status}
                 >
                     <Input
                         name="function"
                         size="middle"
-                        placeholder="Function"
+                        placeholder="Function name"
                         allowClear
                         onChange={onFunctionChange}
                         value={functionIDString()}
@@ -450,37 +392,31 @@ export const ExecuteLegacy = () => {
                 </Form.Item>
                 <Form.Item
                     label="Inputs"
-                    name="inputs"
                     colon={false}
                     validateStatus={status}
                 >
-                    <Input.TextArea
+                    <Input
                         name="inputs"
                         size="middle"
-                        placeholder="Inputs"
+                        placeholder="Space-separated inputs"
                         allowClear
                         onChange={onInputsChange}
                         value={inputsString()}
                     />
                 </Form.Item>
-                {Array.isArray(programInputs) && (
-                    <Form.Item label="Input List">
-                        <FormGenerator formData={programInputs} />
-                    </Form.Item>
-                )}
                 <Form.Item
                     label="Private Key"
-                    name="private_key"
                     colon={false}
                     validateStatus={status}
                 >
-                    <Input.TextArea
-                        name="private_key"
-                        size="small"
-                        placeholder="Private Key"
+                    <Input
+                        name="privateKey"
+                        size="middle"
+                        placeholder="Private key"
                         allowClear
                         onChange={onPrivateKeyChange}
                         value={privateKeyString()}
+                        addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
                     />
                 </Form.Item>
                 <Form.Item
@@ -489,39 +425,45 @@ export const ExecuteLegacy = () => {
                     valuePropName="checked"
                     initialValue={false}
                 >
-                    <Switch onChange={setExecuteOnline} />
+                    <Switch
+                        checked={executeOnline}
+                        onChange={setExecuteOnline}
+                    />
                 </Form.Item>
                 {executeOnline && (
                     <>
                         <Form.Item
-                            label="Private Fee"
-                            name="private_fee"
-                            valuePropName="checked"
-                            initialValue={false}
+                            label="Fee"
+                            colon={false}
+                            validateStatus={status}
                         >
-                            <Switch onChange={setPrivateFee} />
+                            <Input
+                                name="fee"
+                                size="middle"
+                                placeholder="Execution fee"
+                                allowClear
+                                onChange={onExecutionFeeChange}
+                                value={feeString()}
+                            />
                         </Form.Item>
-                        {privateFee && (
-                            <Form.Item
-                                label="Fee Record"
-                                name="fee_record"
-                                colon={false}
-                                validateStatus={status}
-                            >
-                                <Input.TextArea
-                                    name="Fee Record"
-                                    size="small"
-                                    placeholder="Record used to pay execution fee"
-                                    allowClear
-                                    onChange={onExecutionFeeRecordChange}
-                                    value={feeRecordString()}
-                                />
-                            </Form.Item>
-                        )}
+                        <Form.Item
+                            label="Fee Record"
+                            colon={false}
+                            validateStatus={status}
+                        >
+                            <Input.TextArea
+                                name="feeRecord"
+                                size="small"
+                                placeholder="Fee record"
+                                allowClear
+                                onChange={onExecutionFeeRecordChange}
+                                value={feeRecordString()}
+                            />
+                        </Form.Item>
                     </>
                 )}
-                <Row justify="center">
-                    <Col justify="center">
+                <Form.Item>
+                    <Space>
                         <Button
                             type="primary"
                             size="middle"
@@ -530,51 +472,53 @@ export const ExecuteLegacy = () => {
                         >
                             Execute
                         </Button>
-                    </Col>
-                    {executeOnline && (
-                        <Col justify="center">
+                        {executeOnline && (
                             <Button
-                                type="primary"
                                 size="middle"
                                 onClick={estimate}
                                 loading={feeLoading}
                             >
                                 Estimate Fee
                             </Button>
-                        </Col>
-                    )}
-                </Row>
+                        )}
+                    </Space>
+                </Form.Item>
             </Form>
-            <Row
-                justify="center"
-                gutter={[16, 32]}
-                style={{ marginTop: "48px" }}
-            >
-                {loading === true && (
-                    <Spin tip={tip} size="large" />
-                )}
-                {programResponse !== null && (
-                    <Result
-                        status="success"
-                        title="Execution Successful!"
-                        subTitle={"Output: " + outputString()}
-                    />
-                )}
-                {transactionID !== null && (
-                    <Result
-                        status="success"
-                        title="Transaction Successful!"
-                        subTitle={"Transaction ID: " + transactionIDString()}
-                    />
-                )}
-                {executionError !== null && (
-                    <Result
-                        status="error"
-                        title="Execution Error"
-                        subTitle={"Error: " + executionErrorString()}
-                    />
-                )}
-            </Row>
+            {programResponse !== null && (
+                <Form {...layout}>
+                    <Form.Item
+                        label="Output"
+                        colon={false}
+                    >
+                        <Input.TextArea
+                            size="large"
+                            rows={4}
+                            value={outputString()}
+                            disabled
+                            addonAfter={<CopyButton data={outputString()} />}
+                        />
+                    </Form.Item>
+                </Form>
+            )}
+            {transactionID !== null && (
+                <Form {...layout}>
+                    <Form.Item
+                        label="Transaction ID"
+                        colon={false}
+                    >
+                        <Input
+                            size="large"
+                            placeholder="Transaction ID"
+                            value={transactionIDString()}
+                            disabled
+                            addonAfter={<CopyButton data={transactionIDString()} />}
+                        />
+                    </Form.Item>
+                </Form>
+            )}
+            {executionError !== null && (
+                <Result status="error" title="Error" subTitle={executionErrorString()} />
+            )}
         </Card>
     );
 };

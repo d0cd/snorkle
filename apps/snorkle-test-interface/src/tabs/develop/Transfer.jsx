@@ -16,6 +16,7 @@ import {
 import { DownOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { useNetwork } from "../../NetworkContext";
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const Transfer = () => {
     const [transferFeeRecord, setTransferFeeRecord] = useState(null);
@@ -158,6 +159,12 @@ export const Transfer = () => {
         return privateKey;
     };
 
+    const handleDropdownSelect = (val) => {
+        setPrivateKey(val);
+        setTransactionID(null);
+        setTransferError(null);
+    };
+
     const onClick = ({ value }) => {
         setTransactionID(null);
         setTransferError(null);
@@ -272,13 +279,14 @@ export const Transfer = () => {
                     colon={false}
                     validateStatus={status}
                 >
-                    <Input.TextArea
-                        name="private_key"
-                        size="small"
-                        placeholder="Private Key"
+                    <Input
+                        name="privateKey"
+                        size="middle"
+                        placeholder="Private key"
                         allowClear
                         onChange={onPrivateKeyChange}
                         value={privateKeyString()}
+                        addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
                     />
                 </Form.Item>
                 <Form.Item

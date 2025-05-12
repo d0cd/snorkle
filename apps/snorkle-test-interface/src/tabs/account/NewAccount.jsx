@@ -1,23 +1,24 @@
 import { useState } from "react";
-import { Button, Card, Col, Divider, Form, Input, Row } from "antd";
+import { Card, Divider, Form, Input, Modal } from "antd";
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
+import { useKeyVault } from "../../KeyVaultContext";
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const NewAccount = () => {
     const [account, setAccount] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [saveModal, setSaveModal] = useState(false);
+    const [saveName, setSaveName] = useState("");
     const [aleo] = useAleoWASM();
+    const { addKey } = useKeyVault();
 
-    const generateAccount = async () => {
-        setLoading(true);
-        setTimeout(() => {
-            setAccount(new aleo.PrivateKey());
-            setLoading(false);
-        }, 25);
-    };
-
-    const clear = () => {
-        setAccount(null);
+    const handleDropdownSelect = (val) => {
+        try {
+            setAccount(aleo.PrivateKey.from_string(val));
+        } catch (error) {
+            console.error(error);
+            setAccount(null);
+        }
     };
 
     const privateKey = () => (account !== null ? account.to_string() : "");
@@ -28,41 +29,37 @@ export const NewAccount = () => {
 
     const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
 
+    const handleSave = () => {
+        addKey({
+            name: saveName || `Account ${address().slice(0, 6)}`,
+            privateKey: privateKey(),
+            viewKey: viewKey(),
+            address: address(),
+        });
+        setSaveModal(false);
+        setSaveName("");
+    };
+
     if (aleo !== null) {
         return (
             <Card
-                title="Create a New Account"
+                title="Load Account"
                 style={{ width: "100%" }}
             >
-                <Row justify="center">
-                    <Col>
-                        <Button
-                            type="primary"
+                <Form {...layout}>
+                    <Form.Item label="Private Key" colon={false}>
+                        <Input
                             size="large"
-                            onClick={generateAccount}
-                            loading={!!loading}
-                        >
-                            Generate
-                        </Button>
-                    </Col>
-                    <Col offset="1">
-                        <Button  size="large" onClick={clear}>
-                            Clear
-                        </Button>
-                    </Col>
-                </Row>
+                            placeholder="Enter or select a private key"
+                            value={privateKey()}
+                            addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
+                            disabled
+                        />
+                    </Form.Item>
+                </Form>
                 {account && (
                     <Form {...layout}>
                         <Divider />
-                        <Form.Item label="Private Key" colon={false}>
-                            <Input
-                                size="large"
-                                placeholder="Private Key"
-                                value={privateKey()}
-                                addonAfter={<CopyButton data={privateKey()} />}
-                                disabled
-                            />
-                        </Form.Item>
                         <Form.Item label="View Key" colon={false}>
                             <Input
                                 size="large"
@@ -81,8 +78,36 @@ export const NewAccount = () => {
                                 disabled
                             />
                         </Form.Item>
+                        <Form.Item>
+                            <Input
+                                placeholder="Account Name"
+                                value={saveName}
+                                onChange={e => setSaveName(e.target.value)}
+                                maxLength={32}
+                                style={{ marginBottom: 12 }}
+                                addonAfter={
+                                    <Input
+                                        type="button"
+                                        value="Save to Vault"
+                                        onClick={() => setSaveModal(true)}
+                                        style={{ border: 'none', background: 'none', cursor: 'pointer' }}
+                                    />
+                                }
+                            />
+                        </Form.Item>
                     </Form>
                 )}
+                <Modal
+                    title="Save Account to Vault"
+                    open={saveModal}
+                    onOk={handleSave}
+                    onCancel={() => setSaveModal(false)}
+                    okText="Save"
+                >
+                    <div style={{ fontSize: 12, color: '#888' }}>
+                        Private Key, View Key, and Address will be saved locally in your browser.
+                    </div>
+                </Modal>
             </Card>
         );
     } else {

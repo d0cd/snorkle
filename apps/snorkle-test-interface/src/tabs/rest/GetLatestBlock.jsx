@@ -6,23 +6,18 @@ import { useNetwork } from "../../NetworkContext";
 
 export const GetLatestBlock = () => {
     const [latestBlock, setLatestBlock] = useState(null);
-    const { endpointUrl, networkString, isCustomEndpointValid, isCustomNetworkValid } = useNetwork();
+    const { endpointUrl, networkString } = useNetwork();
 
     const tryRequest = () => {
         setLatestBlock(null);
-        try {
-            if (!isCustomEndpointValid || !isCustomNetworkValid) {
-                setLatestBlock("Invalid endpoint or network");
-                return;
-            }
-            axios
-                .get(`${endpointUrl}/${networkString}/block/latest`)
-                .then((response) =>
-                    setLatestBlock(JSON.stringify(response.data, null, 2)),
-                );
-        } catch (error) {
-            console.error(error);
-        }
+        axios
+            .get(`${endpointUrl}/${networkString}/block/latest`)
+            .then((response) =>
+                setLatestBlock(JSON.stringify(response.data, null, 2)),
+            )
+            .catch((error) => {
+                setLatestBlock(error.message || "API/network error");
+            });
     };
 
     const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };

@@ -6,23 +6,18 @@ import { useNetwork } from "../../NetworkContext";
 
 export const GetLatestBlockHeight = () => {
     const [latestHeight, setLatestHeight] = useState(null);
-    const { endpointUrl, networkString, isCustomEndpointValid, isCustomNetworkValid } = useNetwork();
+    const { endpointUrl, networkString } = useNetwork();
 
     const tryRequest = () => {
         setLatestHeight(null);
-        try {
-            if (!isCustomEndpointValid || !isCustomNetworkValid) {
-                setLatestHeight("Invalid endpoint or network");
-                return;
-            }
-            axios
-                .get(`${endpointUrl}/${networkString}/block/height/latest`)
-                .then((response) =>
-                    setLatestHeight(JSON.stringify(response.data, null, 2)),
-                );
-        } catch (error) {
-            console.error(error);
-        }
+        axios
+            .get(`${endpointUrl}/${networkString}/block/height/latest`)
+            .then((response) =>
+                setLatestHeight(JSON.stringify(response.data, null, 2)),
+            )
+            .catch((error) => {
+                setLatestHeight(error.message || "API/network error");
+            });
     };
 
     const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };

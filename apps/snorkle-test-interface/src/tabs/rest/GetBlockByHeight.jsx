@@ -7,7 +7,7 @@ import { useNetwork } from "../../NetworkContext";
 export const GetBlockByHeight = () => {
     const [blockByHeight, setBlockByHeight] = useState(null);
     const [status, setStatus] = useState("");
-    const { endpointUrl, networkString, isCustomEndpointValid, isCustomNetworkValid } = useNetwork();
+    const { endpointUrl, networkString } = useNetwork();
 
     // Calls `tryRequest` when the search bar input is entered
     const onSearch = (value) => {
@@ -20,32 +20,18 @@ export const GetBlockByHeight = () => {
 
     const tryRequest = (height) => {
         setBlockByHeight(null);
-        try {
-            if (!isCustomEndpointValid || !isCustomNetworkValid) {
+        axios
+            .get(`${endpointUrl}/${networkString}/block/${height}`)
+            .then((response) => {
+                setBlockByHeight(
+                    JSON.stringify(response.data, null, 2),
+                );
+                setStatus("success");
+            })
+            .catch((error) => {
+                setBlockByHeight(error.message || "API/network error");
                 setStatus("error");
-                setBlockByHeight("Invalid endpoint or network");
-                return;
-            }
-            if (height) {
-                axios
-                    .get(`${endpointUrl}/${networkString}/block/${height}`)
-                    .then((response) => {
-                        setBlockByHeight(
-                            JSON.stringify(response.data, null, 2),
-                        );
-                        setStatus("success");
-                    })
-                    .catch((error) => {
-                        setStatus("error");
-                        console.error(error);
-                    });
-            } else {
-                // If the search bar is empty reset the status to "".
-                setStatus("");
-            }
-        } catch (error) {
-            console.error(error);
-        }
+            });
     };
 
     const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };

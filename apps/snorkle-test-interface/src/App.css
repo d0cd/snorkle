@@ -33,3 +33,15 @@ input[type="text"]:disabled {
         color: black;
     }
 }
+
+/* Remove border from Ant Design Card in light mode */
+:root .ant-card {
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+/* Remove border from top-level containers in light mode */
+body, #root, #root > div {
+  border: none !important;
+  box-shadow: none !important;
+}

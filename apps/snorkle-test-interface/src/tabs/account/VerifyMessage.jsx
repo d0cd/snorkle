@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Card, Form, Input } from "antd";
 import { useAleoWASM } from "../../aleo-wasm-hook";
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const VerifyMessage = () => {
     const [inputAddress, setInputAddress] = useState(null);
     const [verified, setVerified] = useState(false);
     const [signatureInput, setSignatureInput] = useState(null);
     const [messageInput, setMessageInput] = useState(null);
+    const [addressInput, setAddressInput] = useState("");
     const didMount = useRef(false);
     const [aleo] = useAleoWASM();
     const textEncoder = new TextEncoder();
@@ -28,7 +30,9 @@ export const VerifyMessage = () => {
             }
         }
     };
+
     const onAddressChange = (event) => {
+        setAddressInput(event.target.value);
         try {
             setInputAddress(aleo.Address.from_string(event.target.value));
         } catch (error) {
@@ -40,9 +44,25 @@ export const VerifyMessage = () => {
             setSignatureInput(null);
         }
     };
+
+    const handleDropdownSelect = (val) => {
+        setAddressInput(val);
+        try {
+            setInputAddress(aleo.Address.from_string(val));
+        } catch (error) {
+            setInputAddress(null);
+            console.warn(error);
+        } finally {
+            setVerified(false);
+            setMessageInput(null);
+            setSignatureInput(null);
+        }
+    };
+
     const onMessageChange = (event) => {
         setMessageInput(event.target.value);
     };
+
     const onSignatureChange = (event) => {
         setSignatureInput(event.target.value);
     };
@@ -59,6 +79,7 @@ export const VerifyMessage = () => {
             attemptVerify();
         }
     }, [messageInput, signatureInput, inputAddress, verified]);
+
     if (aleo !== null) {
         const messageString = () =>
             messageInput !== null ? messageInput.toString() : "";
@@ -77,6 +98,8 @@ export const VerifyMessage = () => {
                             placeholder="Address"
                             allowClear
                             onChange={onAddressChange}
+                            value={addressInput}
+                            addonAfter={<KeyDropdown type="address" onSelect={handleDropdownSelect} />}
                         />
                     </Form.Item>
                     <Form.Item label="Message" colon={false}>

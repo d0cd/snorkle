@@ -1,50 +1,49 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, Divider, Form, Input } from "antd";
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const DecryptAccount = () => {
     const [accountFromCiphertext, setAccountFromCiphertext] = useState(null);
-    const [inputCiphertext, setInputCiphertext] = useState(null);
-    const [inputPassword, setInputPassword] = useState(null);
+    const [ciphertext, setCiphertext] = useState("");
+    const [password, setPassword] = useState("");
     const [aleo] = useAleoWASM();
 
     const onCiphertextChange = (event) => {
-        try {
-            let ciphertext = aleo.PrivateKeyCiphertext.fromString(
-                event.target.value,
-            );
-            setInputCiphertext(ciphertext);
-            setAccountFromCiphertext(
-                ciphertext.decryptToPrivateKey(inputPassword),
-            );
-        } catch (error) {
-            setAccountFromCiphertext(null);
-            console.error(error);
-        }
+        setCiphertext(event.target.value);
+        setAccountFromCiphertext(null);
     };
+
     const onPasswordChange = (event) => {
+        setPassword(event.target.value);
+        setAccountFromCiphertext(null);
         try {
-            setInputPassword(event.target.value);
-            setAccountFromCiphertext(
-                inputCiphertext.decryptToPrivateKey(event.target.value),
-            );
+            if (ciphertext && event.target.value) {
+                setAccountFromCiphertext(
+                    aleo.PrivateKey.fromCiphertext(
+                        ciphertext,
+                        event.target.value,
+                    ),
+                );
+            }
         } catch (error) {
             console.error(error);
-            setAccountFromCiphertext(null);
         }
     };
 
     const validateStatusAccount = () => {
-        return inputPassword !== null
-            ? accountFromCiphertext !== null
-                ? "success"
-                : "error"
-            : "";
+        if (accountFromCiphertext !== null) {
+            return "success";
+        } else if (password !== "") {
+            return "error";
+        } else {
+            return "";
+        }
     };
 
-    const layout = { labelCol: { span: 6 }, wrapperCol: { span: 21 } };
-    useEffect(() => {}, [inputCiphertext, inputPassword]);
+    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
+
     if (aleo !== null) {
         const privateKey = () =>
             accountFromCiphertext !== null
@@ -72,6 +71,7 @@ export const DecryptAccount = () => {
                             placeholder="Private Key Ciphertext"
                             allowClear
                             onChange={onCiphertextChange}
+                            value={ciphertext}
                         />
                     </Form.Item>
                     <Form.Item
@@ -84,7 +84,9 @@ export const DecryptAccount = () => {
                             name="password"
                             size="large"
                             placeholder="Password"
+                            type="password"
                             onChange={onPasswordChange}
+                            value={password}
                         />
                     </Form.Item>
                 </Form>
@@ -96,11 +98,7 @@ export const DecryptAccount = () => {
                                 size="large"
                                 placeholder="Private Key"
                                 value={privateKey()}
-                                addonAfter={
-                                    <CopyButton
-                                        data={privateKey()}
-                                    />
-                                }
+                                addonAfter={<CopyButton data={privateKey()} />}
                                 disabled
                             />
                         </Form.Item>
@@ -109,11 +107,7 @@ export const DecryptAccount = () => {
                                 size="large"
                                 placeholder="View Key"
                                 value={viewKey()}
-                                addonAfter={
-                                    <CopyButton
-                                        data={viewKey()}
-                                    />
-                                }
+                                addonAfter={<CopyButton data={viewKey()} />}
                                 disabled
                             />
                         </Form.Item>
@@ -122,11 +116,7 @@ export const DecryptAccount = () => {
                                 size="large"
                                 placeholder="Address"
                                 value={address()}
-                                addonAfter={
-                                    <CopyButton
-                                        data={address()}
-                                    />
-                                }
+                                addonAfter={<CopyButton data={address()} />}
                                 disabled
                             />
                         </Form.Item>

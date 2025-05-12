@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button, Card, Col, Form, Input, Row, Result, Spin } from "antd";
+import { Button, Card, Col, Form, Input, Row, Result, Spin, Space } from "antd";
 import axios from "axios";
 import { useNetwork } from "../../NetworkContext";
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const Split = () => {
     const [amountRecord, setAmountRecord] = useState(null);
@@ -117,6 +118,12 @@ export const Split = () => {
         return privateKey;
     };
 
+    const handleDropdownSelect = (val) => {
+        setPrivateKey(val);
+        setTransactionID(null);
+        setSplitError(null);
+    };
+
     const layout = { labelCol: { span: 5 }, wrapperCol: { span: 21 } };
     const amountString = () => (splitAmount !== null ? splitAmount : "");
     const privateKeyString = () => (privateKey !== null ? privateKey : "");
@@ -162,55 +169,49 @@ export const Split = () => {
                 </Form.Item>
                 <Form.Item
                     label="Private Key"
-                    name="private_key"
                     colon={false}
                     validateStatus={status}
                 >
-                    <Input.TextArea
-                        name="private_key"
-                        size="small"
-                        placeholder="Private Key"
+                    <Input
+                        name="privateKey"
+                        size="middle"
+                        placeholder="Private key"
                         allowClear
                         onChange={onPrivateKeyChange}
                         value={privateKeyString()}
+                        addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
                     />
                 </Form.Item>
-                <Row justify="center">
-                    <Col justify="center">
-                        <Button
-                            type="primary"
-                            size="middle"
-                            onClick={split}
-                            loading={loading}
-                        >
-                            Split
-                        </Button>
-                    </Col>
-                </Row>
+                <Form.Item>
+                    <Button
+                        type="primary"
+                        size="middle"
+                        onClick={split}
+                        loading={loading}
+                    >
+                        Split
+                    </Button>
+                </Form.Item>
             </Form>
-            <Row
-                justify="center"
-                gutter={[16, 32]}
-                style={{ marginTop: "48px" }}
-            >
-                {loading === true && (
-                    <Spin tip="Splitting Record..." size="large" />
-                )}
-                {transactionID !== null && (
-                    <Result
-                        status="success"
-                        title="Split Successful!"
-                        subTitle={"Transaction ID: " + transactionIDString()}
-                    />
-                )}
-                {splitError !== null && (
-                    <Result
-                        status="error"
-                        title="Split Error"
-                        subTitle={"Error: " + splitErrorString()}
-                    />
-                )}
-            </Row>
+            {transactionID !== null && (
+                <Form {...layout}>
+                    <Form.Item
+                        label="Transaction ID"
+                        colon={false}
+                    >
+                        <Input
+                            size="large"
+                            placeholder="Transaction ID"
+                            value={transactionIDString()}
+                            disabled
+                            addonAfter={<CopyButton data={transactionIDString()} />}
+                        />
+                    </Form.Item>
+                </Form>
+            )}
+            {splitError !== null && (
+                <Result status="error" title="Error" subTitle={splitErrorString()} />
+            )}
         </Card>
     );
 };

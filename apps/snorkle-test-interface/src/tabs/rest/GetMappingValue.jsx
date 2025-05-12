@@ -10,7 +10,7 @@ export const GetMappingValue = () => {
     const [mappingKey, setMappingKey] = useState(null);
     const [mappingValue, setMappingValue] = useState(null);
     const [mappingError, setMappingError] = useState(null);
-    const { endpointUrl, networkString, isCustomEndpointValid, isCustomNetworkValid } = useNetwork();
+    const { endpointUrl, networkString } = useNetwork();
 
     const onProgramIDChange = (event) => {
         setProgramID(null);
@@ -44,34 +44,24 @@ export const GetMappingValue = () => {
 
     const tryRequest = () => {
         setMappingError(null);
-        try {
-            if (!isCustomEndpointValid || !isCustomNetworkValid) {
-                setMappingError("Invalid endpoint or network");
-                setMappingValue(null);
-                return;
-            }
-            if (programID && mappingName && mappingKey) {
-                axios
-                    .get(
-                        `${endpointUrl}/${networkString}/program/${programID}/mapping/${mappingName}/${mappingKey}`,
-                    )
-                    .then((response) => {
-                        if (response.data === null) {
-                            setMappingValue("Key Not Found");
-                        } else {
-                            setMappingValue(response.data);
-                        }
-                    })
-                    .catch((error) => {
-                        setMappingValue(null);
-                        setMappingError(error.response?.data);
-                        console.error(error);
-                    });
-            } else {
-                setMappingValue(null);
-            }
-        } catch (error) {
-            console.error(error);
+        if (programID && mappingName && mappingKey) {
+            axios
+                .get(
+                    `${endpointUrl}/${networkString}/program/${programID}/mapping/${mappingName}/${mappingKey}`,
+                )
+                .then((response) => {
+                    if (response.data === null) {
+                        setMappingValue("Key Not Found");
+                    } else {
+                        setMappingValue(response.data);
+                    }
+                })
+                .catch((error) => {
+                    setMappingValue(null);
+                    setMappingError(error.message || "API/network error");
+                });
+        } else {
+            setMappingValue(null);
         }
     };
 

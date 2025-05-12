@@ -36,12 +36,6 @@ export const router = createBrowserRouter([
                 index: true,
                 element: (
                     <>
-                        <NewAccount />
-                        <br />
-                        <AccountFromPrivateKey />
-                        <br />
-                        <AddressFromViewKey />
-                        <br />
                         <SignMessage />
                         <br />
                         <VerifyMessage />
@@ -52,12 +46,6 @@ export const router = createBrowserRouter([
                 path: "account",
                 element: (
                     <>
-                        <NewAccount />
-                        <br />
-                        <AccountFromPrivateKey />
-                        <br />
-                        <AddressFromViewKey />
-                        <br />
                         <SignMessage />
                         <br />
                         <VerifyMessage />

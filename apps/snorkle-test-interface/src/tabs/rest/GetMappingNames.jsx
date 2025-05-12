@@ -8,7 +8,7 @@ export const GetMappingNames = () => {
     const [mapping, setMapping] = useState(null);
     const [programID, setProgramID] = useState(null);
     const [status, setStatus] = useState("");
-    const { endpointUrl, networkString, isCustomEndpointValid, isCustomNetworkValid } = useNetwork();
+    const { endpointUrl, networkString } = useNetwork();
 
     // Returns the program id if the user changes it or the "Demo" button is clicked.
     const onChange = (event) => {
@@ -30,34 +30,16 @@ export const GetMappingNames = () => {
     // Attempts to request the program bytecode with the given program id.
     const tryRequest = (id) => {
         setProgramID(id);
-        try {
-            if (!isCustomEndpointValid || !isCustomNetworkValid) {
+        axios
+            .get(`${endpointUrl}/${networkString}/program/${id}/mappings`)
+            .then((response) => {
+                setStatus("success");
+                setMapping(response.data);
+            })
+            .catch((error) => {
+                setMapping(error.message || "API/network error");
                 setStatus("error");
-                setMapping("Invalid endpoint or network");
-                return;
-            }
-            if (id) {
-                axios
-                    .get(`${endpointUrl}/${networkString}/program/${id}/mappings`)
-                    .then((response) => {
-                        setStatus("success");
-                        setMapping(response.data);
-                    })
-                    .catch((error) => {
-                        // Reset the mapping text to `null` if the program id does not exist.
-                        setMapping(null);
-                        setStatus("error");
-                        console.error(error);
-                    });
-            } else {
-                // Reset the mapping text if the user clears the search bar.
-                setMapping(null);
-                // If the search bar is empty reset the status to "".
-                setStatus("");
-            }
-        } catch (error) {
-            console.error(error);
-        }
+            });
     };
 
     const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };

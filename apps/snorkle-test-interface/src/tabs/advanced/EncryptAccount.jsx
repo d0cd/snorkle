@@ -1,25 +1,39 @@
 import { useState } from "react";
-import { Button, Card, Col, Divider, Form, Input, Row } from "antd";
+import { Card, Divider, Form, Input, Modal } from "antd";
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
+import { KeyDropdown } from "../../components/KeyDropdown";
 
 export const EncryptAccount = () => {
     const [account, setAccount] = useState(null);
     const [encryptedAccount, setEncryptedAccount] = useState(null);
-    const [loading, setLoading] = useState(false);
     const [password, setPassword] = useState(null);
+    const [inputValue, setInputValue] = useState("");
     const [aleo] = useAleoWASM();
 
-    const generateAccount = async () => {
-        setLoading(true);
+    const onKeyChange = (event) => {
+        setInputValue(event.target.value);
+        setAccount(null);
         setEncryptedAccount(null);
-        setTimeout(() => {
-            setAccount(new aleo.PrivateKey());
-            setLoading(false);
-        }, 25);
+        try {
+            setAccount(aleo.PrivateKey.from_string(event.target.value));
+        } catch (error) {
+            console.error(error);
+        }
     };
+
+    const handleDropdownSelect = (val) => {
+        setInputValue(val);
+        setAccount(null);
+        setEncryptedAccount(null);
+        try {
+            setAccount(aleo.PrivateKey.from_string(val));
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     const encryptAccount = async () => {
-        console.log("password is: " + password);
         if (password && account) {
             try {
                 setEncryptedAccount(account.toCiphertext(passwordString()));
@@ -29,17 +43,9 @@ export const EncryptAccount = () => {
             }
         }
     };
-    const clear = () => {
-        setAccount(null);
-        setPassword(null);
-        setEncryptedAccount(null);
-    };
+
     const onPasswordChange = (event) => {
         setPassword(event.target.value);
-        console.log("password input: " + event.target.value);
-        if (encryptedAccount !== null) {
-            console.log("encrypted account: " + encryptedPrivateKey());
-        }
     };
 
     const privateKey = () => (account !== null ? account.to_string() : "");
@@ -56,26 +62,22 @@ export const EncryptAccount = () => {
     if (aleo !== null) {
         return (
             <Card
-                title="Create a New Account"
-                style={{ width: "100%"}}
+                title="Encrypt Account"
+                style={{ width: "100%" }}
             >
-                <Row justify="center">
-                    <Col>
-                        <Button
-                            type="primary"
+                <Form {...layout}>
+                    <Form.Item label="Private Key" colon={false}>
+                        <Input
+                            name="privateKey"
                             size="large"
-                            onClick={generateAccount}
-                            loading={!!loading}
-                        >
-                            Generate
-                        </Button>
-                    </Col>
-                    <Col offset="1">
-                        <Button  size="large" onClick={clear}>
-                            Clear
-                        </Button>
-                    </Col>
-                </Row>
+                            placeholder="Private Key"
+                            allowClear
+                            onChange={onKeyChange}
+                            value={inputValue}
+                            addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
+                        />
+                    </Form.Item>
+                </Form>
                 {account && (
                     <Form {...layout}>
                         <Divider />
@@ -107,44 +109,25 @@ export const EncryptAccount = () => {
                             />
                         </Form.Item>
                         <Divider />
-                        <h3>Encrypt Account</h3>
-                        <Divider />
-                        <Row justify="center">
-                            <Col offset="1">
-                                <Form.Item colon={false}>
-                                    <Input
-                                        size="large"
-                                        placeholder="Password"
-                                        value={passwordString()}
-                                        onChange={onPasswordChange}
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col>
-                                <Button
-                                    type="primary"
-                                    size="large"
-                                    onClick={encryptAccount}
-                                >
-                                    Encrypt Account
-                                </Button>
-                            </Col>
-                        </Row>
-                        {encryptedAccount && (
-                            <Form.Item label="Ciphertext" colon={false}>
-                                <Input
-                                    size="large"
-                                    placeholder="Password"
-                                    value={encryptedPrivateKey()}
-                                    addonAfter={
-                                        <CopyButton
-                                            data={encryptedPrivateKey()}
-                                        />
-                                    }
-                                    disabled
-                                />
-                            </Form.Item>
-                        )}
+                        <Form.Item label="Password" colon={false}>
+                            <Input
+                                name="password"
+                                size="large"
+                                placeholder="Password"
+                                type="password"
+                                onChange={onPasswordChange}
+                                value={passwordString()}
+                            />
+                        </Form.Item>
+                        <Form.Item>
+                            <Input
+                                size="large"
+                                placeholder="Encrypted Private Key"
+                                value={encryptedPrivateKey()}
+                                addonAfter={<CopyButton data={encryptedPrivateKey()} />}
+                                disabled
+                            />
+                        </Form.Item>
                     </Form>
                 )}
             </Card>
