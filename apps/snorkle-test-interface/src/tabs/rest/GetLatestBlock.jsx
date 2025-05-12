@@ -1,56 +1,87 @@
-import {useMemo, useState} from "react";
-import { Button, Card, Box, Paper } from "@mui/material";
-import axios from "axios";
-import { CopyButton } from "../../components/CopyButton";
+import { useState } from "react";
 import { useNetwork } from "../../contexts/NetworkContext";
+import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress,
+    InputAdornment,
+    IconButton
+} from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const GetLatestBlock = () => {
-    const [latestBlock, setLatestBlock] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [block, setBlock] = useState("");
     const { endpointUrl, networkString } = useNetwork();
+    const { enqueueSnackbar } = useSnackbar();
 
-    const tryRequest = () => {
-        setLatestBlock(null);
-        axios
-            .get(`${endpointUrl}/${networkString}/block/latest`)
-            .then((response) =>
-                setLatestBlock(JSON.stringify(response.data, null, 2)),
-            )
-            .catch((error) => {
-                setLatestBlock(error.message || "API/network error");
-            });
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const latestBlockString = useMemo(() => {
-        return latestBlock !== null ? latestBlock.toString() : ""
-    }, [latestBlock]);
+    const onGetLatestBlock = async () => {
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Getting latest block...", { 
+            persist: true,
+            variant: "info"
+        });
+        try {
+            const url = `${endpointUrl}/${networkString}/latest/block`;
+            const response = await axios.get(url);
+            setBlock(JSON.stringify(response.data, null, 2));
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Latest block retrieved successfully!", { variant: "success" });
+        } catch (error) {
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error getting latest block: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <Card sx={{ width: "100%", p: 2 }}>
-            <Box sx={{ mb: 2 }}>
-                <Button 
-                    variant="contained" 
-                    onClick={tryRequest}
-                    color="primary"
-                >
-                    Get Latest Block
-                </Button>
-            </Box>
-            {latestBlockString && (
-                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-                        <CopyButton data={latestBlockString} />
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Get Latest Block</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Button
+                            variant="contained"
+                            onClick={onGetLatestBlock}
+                            disabled={loading}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Get Latest Block"}
+                        </Button>
+                        {block && (
+                            <TextField
+                                fullWidth
+                                label="Latest Block"
+                                value={block}
+                                multiline
+                                rows={10}
+                                InputProps={{
+                                    readOnly: true,
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={() => handleCopy(block)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        )}
                     </Box>
-                    <Box component="pre" sx={{ 
-                        m: 0, 
-                        p: 1, 
-                        bgcolor: 'background.default',
-                        borderRadius: 1,
-                        overflow: 'auto'
-                    }}>
-                        {latestBlockString}
-                    </Box>
-                </Paper>
-            )}
-        </Card>
+                </CardContent>
+            </Card>
+        </Box>
     );
 };

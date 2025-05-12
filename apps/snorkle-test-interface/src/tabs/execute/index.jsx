@@ -1,273 +1,177 @@
+import { useState } from "react";
+import { useAleoWASM } from "../../aleo-wasm-hook";
+import { useKeyVault } from "../../contexts/KeyVaultContext";
+import { useSnackbar } from "notistack";
 import {
     Box,
     Button,
     Card,
     CardContent,
-    Divider,
-    FormControl,
-    InputLabel,
-    MenuItem,
-    Select,
     TextField,
     Typography,
-    Alert,
     CircularProgress,
-    Paper,
-    Stack,
-    useTheme
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    InputAdornment,
+    IconButton
 } from "@mui/material";
-import { useSnackbar } from "notistack";
-import { LoadProgram } from "./LoadProgram.jsx";
-import { CodeEditor } from "./CodeEditor.jsx";
-import { useAleoWASM } from "../../aleo-wasm-hook";
-import { useEffect, useState } from "react";
-import { KeyDropdown } from "../../components/KeyDropdown";
-import { CopyButton } from "../../components/CopyButton";
-import { useNetwork } from "../../contexts/NetworkContext";
-import axios from "axios";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import { CodeEditor } from "./CodeEditor";
 
 export const Execute = () => {
-    const [functions, setFunctions] = useState([]);
     const [aleoWASM] = useAleoWASM();
-    const [modalOpen, setModalOpen] = useState(false);
+    const [program, setProgram] = useState("");
+    const [functionName, setFunctionName] = useState("");
+    const [inputs, setInputs] = useState("");
+    const [selectedKeyId, setSelectedKeyId] = useState("");
     const [loading, setLoading] = useState(false);
-    const [modalResult, setModalResult] = useState({
-        status: "warning",
-        subTitle: "Sorry, something went wrong.",
-    });
-    const [feeLoading, setFeeLoading] = useState(false);
-    const [programValue, setProgramValue] = useState("");
-    const [searchLoading, setSearchLoading] = useState(false);
-    const [searchError, setSearchError] = useState("");
-    const { endpointUrl, networkString } = useNetwork();
+    const [executionResult, setExecutionResult] = useState("");
+    const { keys } = useKeyVault();
     const { enqueueSnackbar } = useSnackbar();
-    const [selectedFunction, setSelectedFunction] = useState(null);
-    const [functionInputs, setFunctionInputs] = useState([]);
-    const [inputs, setInputs] = useState({});
-    const theme = useTheme();
 
-    const handleOk = () => {
-        setModalOpen(false);
+    const selectedKey = keys.find(k => k.id === selectedKeyId);
+
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const parseProgram = async (value) => {
-        setFunctions([]);
-        setSelectedFunction(null);
-        setFunctionInputs([]);
-        try {
-            const program = await aleoWASM.Program.fromString(value);
-            const functionNames = program.getFunctions();
-            const functionItems = functionNames.map((func) => {
-                return {
-                    name: func,
-                    inputs: program.getFunctionInputs(func),
-                };
-            });
-            setFunctions(functionItems);
-            if (functionItems.length > 0) {
-                setSelectedFunction(functionItems[0].name);
-                setFunctionInputs(functionItems[0].inputs);
-            }
-        } catch (e) {
-            setFunctions([]);
-            setSelectedFunction(null);
-            setFunctionInputs([]);
+    const onExecute = async () => {
+        if (!program || !functionName || !selectedKey) {
+            enqueueSnackbar("Please fill in all required fields and select an account", { variant: "error" });
+            return;
         }
-    };
 
-    const onProgramChange = async (value) => {
-        setProgramValue(value);
-        setSearchError("");
-        await parseProgram(value);
-    };
-
-    const onSearch = async (programId) => {
-        setSearchLoading(true);
-        setSearchError("");
-        try {
-            const url = `${endpointUrl}/${networkString}/program/${programId}`;
-            const response = await axios.get(url);
-            setProgramValue(response.data);
-            await parseProgram(response.data);
-        } catch (error) {
-            setSearchError("Program not found on network");
-            enqueueSnackbar("Program not found on network", { variant: "error" });
-        } finally {
-            setSearchLoading(false);
-        }
-    };
-
-    const onFunctionSelect = (funcName) => {
-        setSelectedFunction(funcName);
-        const func = functions.find((f) => f.name === funcName);
-        setFunctionInputs(func ? func.inputs : []);
-        setInputs({});
-    };
-
-    const handleInputChange = (index, value) => {
-        setInputs(prev => ({
-            ...prev,
-            [index]: value
-        }));
-    };
-
-    const renderInputFields = () => {
-        if (!functionInputs || functionInputs.length === 0) return null;
-        return functionInputs.map((input, idx) => (
-            <TextField
-                key={idx}
-                fullWidth
-                label={input.name || input.register || `Input ${idx + 1}`}
-                placeholder={input.type}
-                value={inputs[idx] || ""}
-                onChange={(e) => handleInputChange(idx, e.target.value)}
-                required
-                margin="normal"
-            />
-        ));
-    };
-
-    const getInputString = (inputsObj) => {
-        return Object.values(inputsObj).join(" ");
-    };
-
-    const onFinish = () => {
         setLoading(true);
-        setModalOpen(true);
-        setModalResult({
-            status: "warning",
-            subTitle: "Executing program...",
+        const loadingKey = enqueueSnackbar("Executing program...", { 
+            persist: true,
+            variant: "info"
         });
         try {
-            const result = aleoWASM.executeProgram(
-                programValue,
-                selectedFunction,
-                inputs.private_key,
-                getInputString(inputs)
+            const result = await aleoWASM.executeProgram(
+                program,
+                functionName,
+                inputs.split(",").map(input => input.trim()),
+                selectedKey.privateKey
             );
-            setModalResult({
-                status: "success",
-                subTitle: "Program executed successfully!",
-                result: result,
-            });
-        } catch (e) {
-            setModalResult({
-                status: "error",
-                subTitle: "Error executing program: " + e.message,
-            });
+            setExecutionResult(result);
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Program executed successfully!", { variant: "success" });
+        } catch (error) {
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error executing program: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);
         }
     };
 
-    const onEstimateFee = async () => {
-        setFeeLoading(true);
-        setModalOpen(true);
-        try {
-            const fee = aleoWASM.estimateExecutionFee(
-                programValue,
-                selectedFunction,
-                inputs.private_key,
-                getInputString(inputs)
-            );
-            setModalResult({
-                status: "success",
-                subTitle: "Fee estimated successfully!",
-                result: fee,
-            });
-        } catch (e) {
-            setModalResult({
-                status: "error",
-                subTitle: "Error estimating fee: " + e.message,
-            });
-        } finally {
-            setFeeLoading(false);
-        }
-    };
-
     return (
-        <Card>
-            <CardContent>
-                <Typography variant="h5" gutterBottom>Execute Program</Typography>
-                <Stack spacing={2}>
-                    <Box>
+        <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Execute Program</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <CodeEditor
+                            value={program}
+                            onChange={setProgram}
+                            height={400}
+                            placeholder="Enter your Aleo program here..."
+                        />
                         <TextField
                             fullWidth
-                            label="Program Search"
-                            placeholder="Enter a program ID deployed on the current network"
-                            InputProps={{
-                                endAdornment: (
-                                    <Button
-                                        variant="contained"
-                                        onClick={() => onSearch(inputs.programId)}
-                                        disabled={searchLoading}
-                                    >
-                                        {searchLoading ? <CircularProgress size={24} /> : "Search"}
-                                    </Button>
-                                )
-                            }}
-                            value={inputs.programId || ""}
-                            onChange={(e) => handleInputChange("programId", e.target.value)}
+                            label="Function Name"
+                            value={functionName}
+                            onChange={(e) => setFunctionName(e.target.value)}
+                            placeholder="Enter the function name to execute"
                         />
-                    </Box>
-                    {searchError && (
-                        <Alert severity="error">{searchError}</Alert>
-                    )}
-                    <Divider />
-                    <Box sx={{ 
-                        maxHeight: 240, 
-                        overflow: "auto", 
-                        mb: 2, 
-                        borderRadius: 1, 
-                        border: `1px solid ${theme.palette.divider}` 
-                    }}>
-                        <CodeEditor
-                            value={programValue}
-                            onChange={onProgramChange}
-                            language="leo"
+                        <TextField
+                            fullWidth
+                            label="Inputs (comma-separated)"
+                            value={inputs}
+                            onChange={(e) => setInputs(e.target.value)}
+                            placeholder="Enter inputs separated by commas"
                         />
-                    </Box>
-                    <FormControl fullWidth>
-                        <InputLabel>Select Function</InputLabel>
-                        <Select
-                            value={selectedFunction || ""}
-                            onChange={(e) => onFunctionSelect(e.target.value)}
-                            label="Select Function"
-                        >
-                            {functions.map((func) => (
-                                <MenuItem key={func.name} value={func.name}>
-                                    {func.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    {renderInputFields()}
-                    <TextField
-                        fullWidth
-                        label="Private Key"
-                        value={inputs.private_key || ""}
-                        onChange={(e) => handleInputChange("private_key", e.target.value)}
-                        required
-                        margin="normal"
-                    />
-                    <Stack direction="row" spacing={2}>
+                        <FormControl fullWidth>
+                            <InputLabel>Select Account</InputLabel>
+                            <Select
+                                value={selectedKeyId}
+                                onChange={(e) => setSelectedKeyId(e.target.value)}
+                                label="Select Account"
+                            >
+                                {keys.map((key) => (
+                                    <MenuItem key={key.id} value={key.id}>
+                                        {key.name} ({key.address.slice(0, 8)}...)
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        {selectedKey && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" color="text.secondary">Selected Account Details</Typography>
+                                <TextField
+                                    fullWidth
+                                    label="Address"
+                                    value={selectedKey.address}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.address)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                                <TextField
+                                    fullWidth
+                                    label="Private Key"
+                                    value={selectedKey.privateKey}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.privateKey)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Box>
+                        )}
                         <Button
                             variant="contained"
-                            onClick={onFinish}
-                            disabled={loading}
+                            onClick={onExecute}
+                            disabled={loading || !selectedKey}
+                            size="large"
                         >
-                            {loading ? <CircularProgress size={24} /> : "Execute"}
+                            {loading ? <CircularProgress size={24} /> : "Execute Program"}
                         </Button>
-                        <Button
-                            variant="outlined"
-                            onClick={onEstimateFee}
-                            disabled={feeLoading}
-                        >
-                            {feeLoading ? <CircularProgress size={24} /> : "Estimate Fee"}
-                        </Button>
-                    </Stack>
-                </Stack>
-            </CardContent>
-        </Card>
+                        {executionResult && (
+                            <TextField
+                                fullWidth
+                                label="Execution Result"
+                                value={executionResult}
+                                multiline
+                                rows={4}
+                                InputProps={{
+                                    readOnly: true,
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={() => handleCopy(executionResult)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        )}
+                    </Box>
+                </CardContent>
+            </Card>
+        </Box>
     );
 };

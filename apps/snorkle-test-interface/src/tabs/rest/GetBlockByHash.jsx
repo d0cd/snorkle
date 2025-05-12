@@ -1,81 +1,100 @@
-import {useMemo, useState} from "react";
-import { Card, TextField, Box, Paper } from "@mui/material";
+import { useState } from "react";
+import { useNetwork } from "../../contexts/NetworkContext";
+import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress,
+    InputAdornment,
+    IconButton
+} from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
 import axios from "axios";
-import { CopyButton } from "../../components/CopyButton";
 
 export const GetBlockByHash = () => {
-    const [blockByHash, setBlockByHash] = useState(null);
-    const [status, setStatus] = useState("");
-    const [error, setError] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [hash, setHash] = useState("");
+    const [block, setBlock] = useState("");
+    const { endpointUrl, networkString } = useNetwork();
+    const { enqueueSnackbar } = useSnackbar();
 
-    // Calls `tryRequest` when the search bar input is entered.
-    const onSearch = (event) => {
-        if (event.key === 'Enter') {
-            try {
-                tryRequest(event.target.value);
-            } catch (error) {
-                console.error(error);
-            }
-        }
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const tryRequest = (hash) => {
-        setBlockByHash(null);
-        setError(false);
+    const onGetBlock = async () => {
+        if (!hash) {
+            enqueueSnackbar("Please enter a block hash", { variant: "error" });
+            return;
+        }
+
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Getting block...", { 
+            persist: true,
+            variant: "info"
+        });
         try {
-            if (hash) {
-                axios
-                    .get(`https://api.explorer.provable.com/v1/testnet/block/${hash}`)
-                    .then((response) => {
-                        setBlockByHash(JSON.stringify(response.data, null, 2));
-                        setStatus("success");
-                    })
-                    .catch((error) => {
-                        setStatus("error");
-                        setError(true);
-                        console.error(error);
-                    });
-            } else {
-                // If the search bar is empty reset the status to "".
-                setStatus("");
-            }
+            const url = `${endpointUrl}/${networkString}/block/${hash}`;
+            const response = await axios.get(url);
+            setBlock(JSON.stringify(response.data, null, 2));
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Block retrieved successfully!", { variant: "success" });
         } catch (error) {
-            console.error(error);
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error getting block: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
         }
     };
-
-    const blockString = useMemo(() => {
-        return blockByHash !== null ? blockByHash.toString() : ""
-    }, [blockByHash]);
 
     return (
-        <Card sx={{ width: "100%", p: 2 }}>
-            <Box sx={{ mb: 2 }}>
-                <TextField
-                    fullWidth
-                    label="Block Hash"
-                    variant="outlined"
-                    onKeyPress={onSearch}
-                    error={error}
-                    helperText={error ? "Invalid block hash" : ""}
-                />
-            </Box>
-            {blockString && (
-                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-                        <CopyButton data={blockString} />
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Get Block by Hash</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Block Hash"
+                            value={hash}
+                            onChange={(e) => setHash(e.target.value)}
+                            placeholder="Enter block hash"
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={onGetBlock}
+                            disabled={loading}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Get Block"}
+                        </Button>
+                        {block && (
+                            <TextField
+                                fullWidth
+                                label="Block"
+                                value={block}
+                                multiline
+                                rows={10}
+                                InputProps={{
+                                    readOnly: true,
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={() => handleCopy(block)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        )}
                     </Box>
-                    <Box component="pre" sx={{ 
-                        m: 0, 
-                        p: 1, 
-                        bgcolor: 'background.default',
-                        borderRadius: 1,
-                        overflow: 'auto'
-                    }}>
-                        {blockString}
-                    </Box>
-                </Paper>
-            )}
-        </Card>
+                </CardContent>
+            </Card>
+        </Box>
     );
 };

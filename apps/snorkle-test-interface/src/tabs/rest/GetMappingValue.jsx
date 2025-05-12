@@ -1,124 +1,116 @@
 import { useState } from "react";
-import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from "@mui/material";
-import { CopyButton } from "../../components/CopyButton";
-import { useAleoWASM } from "../../aleo-wasm-hook";
-import { KeyDropdown } from "../../components/KeyDropdown";
 import { useNetwork } from "../../contexts/NetworkContext";
 import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress,
+    InputAdornment,
+    IconButton
+} from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const GetMappingValue = () => {
-    const [programName, setProgramName] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [programId, setProgramId] = useState("");
     const [mappingName, setMappingName] = useState("");
     const [key, setKey] = useState("");
-    const [mappingValueString, setMappingValueString] = useState("");
-    const [aleo] = useAleoWASM();
-    const { endpointUrl: selectedEndpoint } = useNetwork();
+    const [mappingValue, setMappingValue] = useState("");
+    const { endpointUrl, networkString } = useNetwork();
     const { enqueueSnackbar } = useSnackbar();
 
-    const onProgramNameChange = (event) => {
-        setProgramName(event.target.value);
-    };
-
-    const onMappingNameChange = (event) => {
-        setMappingName(event.target.value);
-    };
-
-    const onKeyChange = (event) => {
-        setKey(event.target.value);
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
     const onGetMappingValue = async () => {
-        if (programName === "" || mappingName === "" || key === "") {
-            enqueueSnackbar("Please enter a program name, mapping name, and key", { variant: "error" });
+        if (!programId || !mappingName || !key) {
+            enqueueSnackbar("Please fill in all required fields", { variant: "error" });
             return;
         }
 
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Getting mapping value...", { 
+            persist: true,
+            variant: "info"
+        });
         try {
-            const loadingKey = enqueueSnackbar("Getting mapping value...", { 
-                variant: "info",
-                persist: true 
-            });
-            const mappingValue = await aleo.getMappingValue(programName, mappingName, key, selectedEndpoint);
-            setMappingValueString(JSON.stringify(mappingValue, null, 2));
-            enqueueSnackbar("Mapping value retrieved successfully!", { variant: "success" });
+            const url = `${endpointUrl}/${networkString}/program/${programId}/mapping/${mappingName}/${key}`;
+            const response = await axios.get(url);
+            setMappingValue(JSON.stringify(response.data, null, 2));
             enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Mapping value retrieved successfully!", { variant: "success" });
         } catch (error) {
-            console.error(error);
-            enqueueSnackbar(`Error getting mapping value: ${error.message}`, { variant: "error" });
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error getting mapping value: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
         }
     };
 
-    if (aleo !== null) {
-        return (
-            <Card sx={{ width: "100%", p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    Get Mapping Value
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        label="Program Name"
-                        variant="outlined"
-                        value={programName}
-                        onChange={onProgramNameChange}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <KeyDropdown type="programName" onSelect={onProgramNameChange} />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Mapping Name"
-                        variant="outlined"
-                        value={mappingName}
-                        onChange={onMappingNameChange}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Key"
-                        variant="outlined"
-                        value={key}
-                        onChange={onKeyChange}
-                    />
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={onGetMappingValue}
-                        disabled={!programName || !mappingName || !key}
-                    >
-                        Get Mapping Value
-                    </Button>
-                    {mappingValueString && (
-                        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+    return (
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Get Mapping Value</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Program ID"
+                            value={programId}
+                            onChange={(e) => setProgramId(e.target.value)}
+                            placeholder="Enter program ID"
+                        />
+                        <TextField
+                            fullWidth
+                            label="Mapping Name"
+                            value={mappingName}
+                            onChange={(e) => setMappingName(e.target.value)}
+                            placeholder="Enter mapping name"
+                        />
+                        <TextField
+                            fullWidth
+                            label="Key"
+                            value={key}
+                            onChange={(e) => setKey(e.target.value)}
+                            placeholder="Enter mapping key"
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={onGetMappingValue}
+                            disabled={loading}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Get Mapping Value"}
+                        </Button>
+                        {mappingValue && (
                             <TextField
                                 fullWidth
                                 label="Mapping Value"
-                                variant="outlined"
-                                value={mappingValueString}
-                                disabled
+                                value={mappingValue}
                                 multiline
-                                rows={4}
+                                rows={10}
                                 InputProps={{
+                                    readOnly: true,
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <CopyButton data={mappingValueString} />
+                                            <IconButton onClick={() => handleCopy(mappingValue)}>
+                                                <CopyIcon />
+                                            </IconButton>
                                         </InputAdornment>
                                     ),
                                 }}
                             />
-                        </Paper>
-                    )}
-                </Box>
+                        )}
+                    </Box>
+                </CardContent>
             </Card>
-        );
-    } else {
-        return (
-            <Typography variant="h6" align="center">
-                Loading...
-            </Typography>
-        );
-    }
+        </Box>
+    );
 };

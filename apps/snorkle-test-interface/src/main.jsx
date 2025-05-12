@@ -52,7 +52,7 @@ const menuItems = [
         icon: <PersonIcon />,
     },
     {
-        label: "REST API",
+        label: "REST",
         path: "/rest",
         icon: <ApiIcon />,
     },

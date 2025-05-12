@@ -1,147 +1,164 @@
 import { useState } from "react";
-import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from "@mui/material";
-import { CopyButton } from "../../components/CopyButton";
-import { useAleoWASM } from "../../aleo-wasm-hook";
-import { KeyDropdown } from "../../components/KeyDropdown";
-import { useNetworkContext } from "../../contexts/NetworkContext";
-import { useProgramContext } from "../../contexts/ProgramContext";
-import { useRecordContext } from "../../contexts/RecordContext";
-import { useTransactionContext } from "../../contexts/TransactionContext";
+import { useAleoWASM } from "../../../aleo-wasm-hook";
+import { useKeyVault } from "../../../contexts/KeyVaultContext";
 import { useSnackbar } from "notistack";
-import { useNavigate } from "react-router-dom";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    InputAdornment,
+    IconButton
+} from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import { CodeEditor } from "../execute/CodeEditor";
 
 export const Deploy = () => {
+    const [aleoWASM] = useAleoWASM();
     const [programName, setProgramName] = useState("");
     const [programString, setProgramString] = useState("");
+    const [selectedKeyId, setSelectedKeyId] = useState("");
+    const [loading, setLoading] = useState(false);
     const [deploymentString, setDeploymentString] = useState("");
-    const [privateKeyString, setPrivateKeyString] = useState("");
-    const [aleo] = useAleoWASM();
-    const { networkName, selectedEndpoint } = useNetworkContext();
-    const { setProgramName: setGlobalProgramName } = useProgramContext();
-    const { setRecordName: setGlobalRecordName } = useRecordContext();
-    const { setTransactionID: setGlobalTransactionID } = useTransactionContext();
+    const { keys } = useKeyVault();
     const { enqueueSnackbar } = useSnackbar();
-    const navigate = useNavigate();
 
-    const onProgramNameChange = (event) => {
-        setProgramName(event.target.value);
-    };
+    const selectedKey = keys.find(k => k.id === selectedKeyId);
 
-    const onProgramStringChange = (event) => {
-        setProgramString(event.target.value);
-    };
-
-    const onPrivateKeyChange = (event) => {
-        setPrivateKeyString(event.target.value);
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
     const onDeploy = async () => {
-        if (programName === "" || programString === "" || privateKeyString === "") {
-            enqueueSnackbar("Please enter a program name, program string, and private key", { variant: "error" });
+        if (!programName || !programString || !selectedKey) {
+            enqueueSnackbar("Please fill in all required fields and select an account", { variant: "error" });
             return;
         }
 
+        setLoading(true);
         const loadingKey = enqueueSnackbar("Deploying program...", { 
-            variant: "info",
-            persist: true 
+            persist: true,
+            variant: "info"
         });
-
         try {
-            const privateKey = aleo.PrivateKey.from_string(privateKeyString);
-            const program = aleo.Program.fromString(programString);
-            const deployment = program.deploy(privateKey, selectedEndpoint);
-            setDeploymentString(deployment.to_string());
-            setGlobalProgramName(programName);
-            setGlobalRecordName("");
-            setGlobalTransactionID(deployment.to_string());
+            const deployment = aleoWASM.deployProgram(programName, programString, selectedKey.privateKey);
+            setDeploymentString(deployment);
             enqueueSnackbar.close(loadingKey);
             enqueueSnackbar("Program deployed successfully!", { variant: "success" });
-            navigate("/transactions");
         } catch (error) {
-            console.error(error);
             enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar(`Error deploying program: ${error.message}`, { variant: "error" });
+            enqueueSnackbar("Error deploying program: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
         }
     };
 
-    if (aleo !== null) {
-        return (
-            <Card sx={{ width: "100%", p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    Deploy a Program
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        label="Program Name"
-                        variant="outlined"
-                        value={programName}
-                        onChange={onProgramNameChange}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <KeyDropdown type="programName" onSelect={onProgramNameChange} />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Program String"
-                        variant="outlined"
-                        value={programString}
-                        onChange={onProgramStringChange}
-                        multiline
-                        rows={4}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Private Key"
-                        variant="outlined"
-                        value={privateKeyString}
-                        onChange={onPrivateKeyChange}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <KeyDropdown type="privateKey" onSelect={onPrivateKeyChange} />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={onDeploy}
-                        disabled={!programName || !programString || !privateKeyString}
-                    >
-                        Deploy
-                    </Button>
-                    {deploymentString && (
-                        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+    return (
+        <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Deploy Program</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Program Name"
+                            value={programName}
+                            onChange={(e) => setProgramName(e.target.value)}
+                            placeholder="Enter program name"
+                        />
+                        <CodeEditor
+                            value={programString}
+                            onChange={setProgramString}
+                            height={400}
+                            placeholder="Enter your Aleo program here..."
+                        />
+                        <FormControl fullWidth>
+                            <InputLabel>Select Account</InputLabel>
+                            <Select
+                                value={selectedKeyId}
+                                onChange={(e) => setSelectedKeyId(e.target.value)}
+                                label="Select Account"
+                            >
+                                {keys.map((key) => (
+                                    <MenuItem key={key.id} value={key.id}>
+                                        {key.name} ({key.address.slice(0, 8)}...)
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        {selectedKey && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" color="text.secondary">Selected Account Details</Typography>
+                                <TextField
+                                    fullWidth
+                                    label="Address"
+                                    value={selectedKey.address}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.address)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                                <TextField
+                                    fullWidth
+                                    label="Private Key"
+                                    value={selectedKey.privateKey}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.privateKey)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Box>
+                        )}
+                        <Button
+                            variant="contained"
+                            onClick={onDeploy}
+                            disabled={loading || !selectedKey}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Deploy Program"}
+                        </Button>
+                        {deploymentString && (
                             <TextField
                                 fullWidth
-                                label="Deployment"
-                                variant="outlined"
+                                label="Deployment Transaction"
                                 value={deploymentString}
-                                disabled
+                                multiline
+                                rows={4}
                                 InputProps={{
+                                    readOnly: true,
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <CopyButton data={deploymentString} />
+                                            <IconButton onClick={() => handleCopy(deploymentString)}>
+                                                <CopyIcon />
+                                            </IconButton>
                                         </InputAdornment>
                                     ),
                                 }}
                             />
-                        </Paper>
-                    )}
-                </Box>
+                        )}
+                    </Box>
+                </CardContent>
             </Card>
-        );
-    } else {
-        return (
-            <Typography variant="h6" align="center">
-                Loading...
-            </Typography>
-        );
-    }
+        </Box>
+    );
 }; 

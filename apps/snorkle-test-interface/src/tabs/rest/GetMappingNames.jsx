@@ -1,100 +1,100 @@
 import { useState } from "react";
-import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from "@mui/material";
-import { CopyButton } from "../../components/CopyButton";
-import { useAleoWASM } from "../../aleo-wasm-hook";
-import { KeyDropdown } from "../../components/KeyDropdown";
 import { useNetwork } from "../../contexts/NetworkContext";
 import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress,
+    InputAdornment,
+    IconButton
+} from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const GetMappingNames = () => {
-    const [programName, setProgramName] = useState("");
-    const [mappingNamesString, setMappingNamesString] = useState("");
-    const [aleo] = useAleoWASM();
-    const { endpointUrl: selectedEndpoint } = useNetwork();
+    const [loading, setLoading] = useState(false);
+    const [programId, setProgramId] = useState("");
+    const [mappingNames, setMappingNames] = useState("");
+    const { endpointUrl, networkString } = useNetwork();
     const { enqueueSnackbar } = useSnackbar();
 
-    const onProgramNameChange = (event) => {
-        setProgramName(event.target.value);
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
     const onGetMappingNames = async () => {
-        if (programName === "") {
-            enqueueSnackbar("Please enter a program name", { variant: "error" });
+        if (!programId) {
+            enqueueSnackbar("Please enter a program ID", { variant: "error" });
             return;
         }
 
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Getting mapping names...", { 
+            persist: true,
+            variant: "info"
+        });
         try {
-            const loadingKey = enqueueSnackbar("Getting mapping names...", { 
-                variant: "info",
-                persist: true 
-            });
-            const mappingNames = await aleo.getMappingNames(programName, selectedEndpoint);
-            setMappingNamesString(JSON.stringify(mappingNames, null, 2));
-            enqueueSnackbar("Mapping names retrieved successfully!", { variant: "success" });
+            const url = `${endpointUrl}/${networkString}/program/${programId}/mappings`;
+            const response = await axios.get(url);
+            setMappingNames(JSON.stringify(response.data, null, 2));
             enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Mapping names retrieved successfully!", { variant: "success" });
         } catch (error) {
-            console.error(error);
-            enqueueSnackbar(`Error getting mapping names: ${error.message}`, { variant: "error" });
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error getting mapping names: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
         }
     };
 
-    if (aleo !== null) {
-        return (
-            <Card sx={{ width: "100%", p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    Get Mapping Names
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        label="Program Name"
-                        variant="outlined"
-                        value={programName}
-                        onChange={onProgramNameChange}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <KeyDropdown type="programName" onSelect={onProgramNameChange} />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={onGetMappingNames}
-                        disabled={!programName}
-                    >
-                        Get Mapping Names
-                    </Button>
-                    {mappingNamesString && (
-                        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+    return (
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Get Mapping Names</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Program ID"
+                            value={programId}
+                            onChange={(e) => setProgramId(e.target.value)}
+                            placeholder="Enter program ID"
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={onGetMappingNames}
+                            disabled={loading}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Get Mapping Names"}
+                        </Button>
+                        {mappingNames && (
                             <TextField
                                 fullWidth
                                 label="Mapping Names"
-                                variant="outlined"
-                                value={mappingNamesString}
-                                disabled
+                                value={mappingNames}
                                 multiline
-                                rows={4}
+                                rows={10}
                                 InputProps={{
+                                    readOnly: true,
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <CopyButton data={mappingNamesString} />
+                                            <IconButton onClick={() => handleCopy(mappingNames)}>
+                                                <CopyIcon />
+                                            </IconButton>
                                         </InputAdornment>
                                     ),
                                 }}
                             />
-                        </Paper>
-                    )}
-                </Box>
+                        )}
+                    </Box>
+                </CardContent>
             </Card>
-        );
-    } else {
-        return (
-            <Typography variant="h6" align="center">
-                Loading...
-            </Typography>
-        );
-    }
+        </Box>
+    );
 };

@@ -1,109 +1,158 @@
-import {useMemo, useState} from "react";
-import { Card, TextField, Box, Paper, Typography, InputAdornment } from "@mui/material";
-import { CopyButton } from "../../components/CopyButton";
+import { useState } from "react";
 import { useAleoWASM } from "../../aleo-wasm-hook";
-import { KeyDropdown } from "../../components/KeyDropdown";
+import { useKeyVault } from "../../contexts/KeyVaultContext";
+import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    InputAdornment,
+    IconButton
+} from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
 
 export const SignMessage = () => {
-    const [signingAccount, setSigningAccount] = useState(null);
-    const [inputValue, setInputValue] = useState("");
-    const [messageString, setMessageString] = useState("");
-    const [signatureString, setSignatureString] = useState("");
-    const [aleo] = useAleoWASM();
-    const textEncoder = new TextEncoder();
+    const [aleoWASM] = useAleoWASM();
+    const [message, setMessage] = useState("");
+    const [selectedKeyId, setSelectedKeyId] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [signature, setSignature] = useState("");
+    const { keys } = useKeyVault();
+    const { enqueueSnackbar } = useSnackbar();
 
-    const onKeyChange = (event) => {
-        setInputValue(event.target.value);
-        setSigningAccount(null);
+    const selectedKey = keys.find(k => k.id === selectedKeyId);
+
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
+    };
+
+    const onSign = async () => {
+        if (!message || !selectedKey) {
+            enqueueSnackbar("Please enter a message and select an account", { variant: "error" });
+            return;
+        }
+
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Signing message...", { 
+            persist: true,
+            variant: "info"
+        });
         try {
-            setSigningAccount(aleo.PrivateKey.from_string(event.target.value));
-            onMessageChange();
+            const signedMessage = aleoWASM.signMessage(message, selectedKey.privateKey);
+            setSignature(signedMessage);
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Message signed successfully!", { variant: "success" });
         } catch (error) {
-            console.error(error);
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error signing message: " + error.message, { variant: "error" });
         } finally {
-            setMessageString(null);
-            setSignatureString(null);
+            setLoading(false);
         }
     };
 
-    const handleDropdownSelect = (val) => {
-        setInputValue(val);
-        try {
-            setSigningAccount(aleo.PrivateKey.from_string(val));
-            onMessageChange();
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    const signString = (str) => {
-        if ((str === "") | (signingAccount === null)) return;
-        return signingAccount.sign(textEncoder.encode(str)).to_string();
-    };
-
-    const onMessageChange = (event) => {
-        setMessageString(event.target.value);
-        try {
-            setSignatureString(signString(event.target.value));
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    if (aleo !== null) {
-        return (
-            <Card sx={{ width: "100%", p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    Sign a Message
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        label="Private Key"
-                        variant="outlined"
-                        value={inputValue}
-                        onChange={onKeyChange}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Message"
-                        variant="outlined"
-                        value={messageString}
-                        onChange={onMessageChange}
-                    />
-                    {signingAccount && (
-                        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+    return (
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Sign Message</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Message"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Enter message to sign"
+                            multiline
+                            rows={4}
+                        />
+                        <FormControl fullWidth>
+                            <InputLabel>Select Account</InputLabel>
+                            <Select
+                                value={selectedKeyId}
+                                onChange={(e) => setSelectedKeyId(e.target.value)}
+                                label="Select Account"
+                            >
+                                {keys.map((key) => (
+                                    <MenuItem key={key.id} value={key.id}>
+                                        {key.name} ({key.address.slice(0, 8)}...)
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        {selectedKey && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" color="text.secondary">Selected Account Details</Typography>
+                                <TextField
+                                    fullWidth
+                                    label="Address"
+                                    value={selectedKey.address}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.address)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                                <TextField
+                                    fullWidth
+                                    label="Private Key"
+                                    value={selectedKey.privateKey}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.privateKey)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Box>
+                        )}
+                        <Button
+                            variant="contained"
+                            onClick={onSign}
+                            disabled={loading || !selectedKey}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Sign Message"}
+                        </Button>
+                        {signature && (
                             <TextField
                                 fullWidth
                                 label="Signature"
-                                variant="outlined"
-                                value={signatureString}
-                                disabled
+                                value={signature}
+                                multiline
+                                rows={4}
                                 InputProps={{
+                                    readOnly: true,
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <CopyButton data={signatureString} />
+                                            <IconButton onClick={() => handleCopy(signature)}>
+                                                <CopyIcon />
+                                            </IconButton>
                                         </InputAdornment>
                                     ),
                                 }}
                             />
-                        </Paper>
-                    )}
-                </Box>
+                        )}
+                    </Box>
+                </CardContent>
             </Card>
-        );
-    } else {
-        return (
-            <Typography variant="h6" align="center">
-                Loading...
-            </Typography>
-        );
-    }
+        </Box>
+    );
 };

@@ -8,8 +8,11 @@ import {
     CardContent,
     TextField,
     Typography,
-    CircularProgress
+    CircularProgress,
+    InputAdornment,
+    IconButton
 } from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
 import axios from "axios";
 
 export const GetTransaction = () => {
@@ -18,6 +21,11 @@ export const GetTransaction = () => {
     const [transaction, setTransaction] = useState("");
     const { endpointUrl, networkString } = useNetwork();
     const { enqueueSnackbar } = useSnackbar();
+
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
+    };
 
     const onGetTransaction = async () => {
         if (!transactionId) {
@@ -45,37 +53,48 @@ export const GetTransaction = () => {
     };
 
     return (
-        <Card>
-            <CardContent>
-                <Typography variant="h5" gutterBottom>Get Transaction</Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        label="Transaction ID"
-                        value={transactionId}
-                        onChange={(e) => setTransactionId(e.target.value)}
-                    />
-                    <Button
-                        variant="contained"
-                        onClick={onGetTransaction}
-                        disabled={loading}
-                    >
-                        {loading ? <CircularProgress size={24} /> : "Get Transaction"}
-                    </Button>
-                    {transaction && (
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Get Transaction</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <TextField
                             fullWidth
-                            label="Transaction"
-                            value={transaction}
-                            multiline
-                            rows={10}
-                            InputProps={{
-                                readOnly: true,
-                            }}
+                            label="Transaction ID"
+                            value={transactionId}
+                            onChange={(e) => setTransactionId(e.target.value)}
+                            placeholder="Enter transaction ID"
                         />
-                    )}
-                </Box>
-            </CardContent>
-        </Card>
+                        <Button
+                            variant="contained"
+                            onClick={onGetTransaction}
+                            disabled={loading}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Get Transaction"}
+                        </Button>
+                        {transaction && (
+                            <TextField
+                                fullWidth
+                                label="Transaction"
+                                value={transaction}
+                                multiline
+                                rows={10}
+                                InputProps={{
+                                    readOnly: true,
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={() => handleCopy(transaction)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        )}
+                    </Box>
+                </CardContent>
+            </Card>
+        </Box>
     );
 };

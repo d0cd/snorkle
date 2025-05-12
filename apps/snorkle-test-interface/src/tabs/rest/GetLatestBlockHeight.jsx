@@ -8,8 +8,11 @@ import {
     CardContent,
     TextField,
     Typography,
-    CircularProgress
+    CircularProgress,
+    InputAdornment,
+    IconButton
 } from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
 import axios from "axios";
 
 export const GetLatestBlockHeight = () => {
@@ -17,6 +20,11 @@ export const GetLatestBlockHeight = () => {
     const [blockHeight, setBlockHeight] = useState("");
     const { endpointUrl, networkString } = useNetwork();
     const { enqueueSnackbar } = useSnackbar();
+
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
+    };
 
     const onGetLatestBlockHeight = async () => {
         setLoading(true);
@@ -27,7 +35,7 @@ export const GetLatestBlockHeight = () => {
         try {
             const url = `${endpointUrl}/${networkString}/latest/height`;
             const response = await axios.get(url);
-            setBlockHeight(response.data);
+            setBlockHeight(JSON.stringify(response.data, null, 2));
             enqueueSnackbar.close(loadingKey);
             enqueueSnackbar("Latest block height retrieved successfully!", { variant: "success" });
         } catch (error) {
@@ -39,29 +47,41 @@ export const GetLatestBlockHeight = () => {
     };
 
     return (
-        <Card>
-            <CardContent>
-                <Typography variant="h5" gutterBottom>Get Latest Block Height</Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Button
-                        variant="contained"
-                        onClick={onGetLatestBlockHeight}
-                        disabled={loading}
-                    >
-                        {loading ? <CircularProgress size={24} /> : "Get Latest Block Height"}
-                    </Button>
-                    {blockHeight && (
-                        <TextField
-                            fullWidth
-                            label="Latest Block Height"
-                            value={blockHeight}
-                            InputProps={{
-                                readOnly: true,
-                            }}
-                        />
-                    )}
-                </Box>
-            </CardContent>
-        </Card>
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Get Latest Block Height</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Button
+                            variant="contained"
+                            onClick={onGetLatestBlockHeight}
+                            disabled={loading}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Get Latest Block Height"}
+                        </Button>
+                        {blockHeight && (
+                            <TextField
+                                fullWidth
+                                label="Latest Block Height"
+                                value={blockHeight}
+                                multiline
+                                rows={4}
+                                InputProps={{
+                                    readOnly: true,
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={() => handleCopy(blockHeight)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        )}
+                    </Box>
+                </CardContent>
+            </Card>
+        </Box>
     );
 };

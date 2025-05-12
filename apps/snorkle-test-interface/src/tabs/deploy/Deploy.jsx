@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAleoWASM } from "../../aleo-wasm-hook";
 import { useNetwork } from "../../contexts/NetworkContext";
+import { useKeyVault } from "../../contexts/KeyVaultContext";
 import { useSnackbar } from "notistack";
 import { useNavigate } from "react-router-dom";
 import {
@@ -10,20 +11,30 @@ import {
     CardContent,
     TextField,
     Typography,
-    CircularProgress
+    CircularProgress,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    InputAdornment,
+    IconButton
 } from "@mui/material";
 import { CodeEditor } from "../execute/CodeEditor";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
 
 export const Deploy = () => {
     const [aleoWASM] = useAleoWASM();
     const [programName, setProgramName] = useState("");
     const [programString, setProgramString] = useState("");
-    const [privateKey, setPrivateKey] = useState("");
+    const [selectedKeyId, setSelectedKeyId] = useState("");
     const [loading, setLoading] = useState(false);
     const [deploymentString, setDeploymentString] = useState("");
     const { endpointUrl, networkString } = useNetwork();
+    const { keys } = useKeyVault();
     const { enqueueSnackbar } = useSnackbar();
     const navigate = useNavigate();
+
+    const selectedKey = keys.find(k => k.id === selectedKeyId);
 
     const onProgramNameChange = (event) => {
         setProgramName(event.target.value);
@@ -33,13 +44,18 @@ export const Deploy = () => {
         setProgramString(value);
     };
 
-    const onPrivateKeyChange = (event) => {
-        setPrivateKey(event.target.value);
+    const onKeyChange = (event) => {
+        setSelectedKeyId(event.target.value);
+    };
+
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
     const onDeploy = async () => {
-        if (!programName || !programString || !privateKey) {
-            enqueueSnackbar("Please enter a program name, program string, and private key", { variant: "error" });
+        if (!programName || !programString || !selectedKey) {
+            enqueueSnackbar("Please enter a program name, program string, and select a key", { variant: "error" });
             return;
         }
 
@@ -49,7 +65,7 @@ export const Deploy = () => {
             variant: "info"
         });
         try {
-            const deployment = aleoWASM.deployProgram(programName, programString, privateKey);
+            const deployment = aleoWASM.deployProgram(programName, programString, selectedKey.privateKey);
             setDeploymentString(deployment);
             enqueueSnackbar.close(loadingKey);
             enqueueSnackbar("Program deployed successfully!", { variant: "success" });
@@ -89,18 +105,75 @@ export const Deploy = () => {
                                 language="leo"
                             />
                         </Box>
-                        <TextField
-                            fullWidth
-                            label="Private Key"
-                            value={privateKey}
-                            onChange={onPrivateKeyChange}
-                            type="password"
-                            placeholder="Enter your private key"
-                        />
+                        <FormControl fullWidth>
+                            <InputLabel>Select Account</InputLabel>
+                            <Select
+                                value={selectedKeyId}
+                                onChange={onKeyChange}
+                                label="Select Account"
+                            >
+                                {keys.map((key) => (
+                                    <MenuItem key={key.id} value={key.id}>
+                                        {key.name} ({key.address.slice(0, 8)}...)
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        {selectedKey && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" color="text.secondary">Selected Account Details</Typography>
+                                <TextField
+                                    fullWidth
+                                    label="Address"
+                                    value={selectedKey.address}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.address)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                                <TextField
+                                    fullWidth
+                                    label="View Key"
+                                    value={selectedKey.viewKey}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.viewKey)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                                <TextField
+                                    fullWidth
+                                    label="Private Key"
+                                    value={selectedKey.privateKey}
+                                    type="password"
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(selectedKey.privateKey)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Box>
+                        )}
                         <Button
                             variant="contained"
                             onClick={onDeploy}
-                            disabled={loading}
+                            disabled={loading || !selectedKey}
                             size="large"
                         >
                             {loading ? <CircularProgress size={24} /> : "Deploy Program"}
@@ -114,6 +187,13 @@ export const Deploy = () => {
                                 rows={4}
                                 InputProps={{
                                     readOnly: true,
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={() => handleCopy(deploymentString)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
                                 }}
                             />
                         )}

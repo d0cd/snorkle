@@ -1,83 +1,101 @@
-import {useMemo, useState} from "react";
-import { Card, TextField, Box, Paper, Grid, Typography } from "@mui/material";
-import axios from "axios";
-import { CopyButton } from "../../components/CopyButton";
+import { useState } from "react";
 import { useNetwork } from "../../contexts/NetworkContext";
+import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress,
+    InputAdornment,
+    IconButton
+} from "@mui/material";
+import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const GetBlockByHeight = () => {
-    const [blockByHeight, setBlockByHeight] = useState(null);
-    const [status, setStatus] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [height, setHeight] = useState("");
+    const [block, setBlock] = useState("");
     const { endpointUrl, networkString } = useNetwork();
+    const { enqueueSnackbar } = useSnackbar();
 
-    // Calls `tryRequest` when the search bar input is entered
-    const onSearch = (event) => {
-        if (event.key === 'Enter') {
-            try {
-                tryRequest(event.target.value);
-            } catch (error) {
-                console.error(error);
-            }
+    const handleCopy = (text) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
+    };
+
+    const onGetBlock = async () => {
+        if (!height) {
+            enqueueSnackbar("Please enter a block height", { variant: "error" });
+            return;
+        }
+
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Getting block...", { 
+            persist: true,
+            variant: "info"
+        });
+        try {
+            const url = `${endpointUrl}/${networkString}/block/${height}`;
+            const response = await axios.get(url);
+            setBlock(JSON.stringify(response.data, null, 2));
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Block retrieved successfully!", { variant: "success" });
+        } catch (error) {
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error getting block: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
         }
     };
 
-    const tryRequest = (height) => {
-        setBlockByHeight(null);
-        axios
-            .get(`${endpointUrl}/${networkString}/block/${height}`)
-            .then((response) => {
-                setBlockByHeight(
-                    JSON.stringify(response.data, null, 2),
-                );
-                setStatus("success");
-            })
-            .catch((error) => {
-                setBlockByHeight(error.message || "API/network error");
-                setStatus("error");
-            });
-    };
-
-    const blockString = useMemo(() => {
-        return blockByHeight !== null ? blockByHeight.toString() : ""
-    }, [blockByHeight]);
-
     return (
-        <Card sx={{ width: "100%", p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-                Get Block By Height
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-                <TextField
-                    fullWidth
-                    label="Block Height"
-                    variant="outlined"
-                    onKeyPress={onSearch}
-                    error={status === "error"}
-                    helperText={status === "error" ? "Invalid block height" : ""}
-                />
-            </Box>
-            {blockByHeight !== null && (
-                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-                    <Grid container spacing={2}>
-                        <Grid item xs={11}>
-                            <Box component="pre" sx={{ 
-                                m: 0, 
-                                p: 1, 
-                                bgcolor: 'background.default',
-                                borderRadius: 1,
-                                overflow: 'auto',
-                                maxHeight: '500px'
-                            }}>
-                                {blockString}
-                            </Box>
-                        </Grid>
-                        <Grid item xs={1}>
-                            <Box sx={{ display: 'flex', justifyContent: 'center', height: '100%' }}>
-                                <CopyButton data={blockString} />
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </Paper>
-            )}
-        </Card>
+        <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
+            <Card>
+                <CardContent>
+                    <Typography variant="h5" gutterBottom>Get Block by Height</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="Block Height"
+                            value={height}
+                            onChange={(e) => setHeight(e.target.value)}
+                            placeholder="Enter block height"
+                            type="number"
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={onGetBlock}
+                            disabled={loading}
+                            size="large"
+                        >
+                            {loading ? <CircularProgress size={24} /> : "Get Block"}
+                        </Button>
+                        {block && (
+                            <TextField
+                                fullWidth
+                                label="Block"
+                                value={block}
+                                multiline
+                                rows={10}
+                                InputProps={{
+                                    readOnly: true,
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton onClick={() => handleCopy(block)}>
+                                                <CopyIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                        )}
+                    </Box>
+                </CardContent>
+            </Card>
+        </Box>
     );
 };
