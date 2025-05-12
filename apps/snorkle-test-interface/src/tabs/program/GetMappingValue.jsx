@@ -3,38 +3,48 @@ import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from 
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
 import { KeyDropdown } from "../../components/KeyDropdown";
-import { useNetwork } from "../../contexts/NetworkContext";
+import { useNetworkContext } from "../../contexts/NetworkContext";
+import { useWasmLoadingContext } from "../../contexts/WasmLoadingContext";
 import { useSnackbar } from "notistack";
 
-export const GetMappingNames = () => {
+export const GetMappingValue = () => {
     const [programName, setProgramName] = useState("");
-    const [mappingNamesString, setMappingNamesString] = useState("");
+    const [mappingName, setMappingName] = useState("");
+    const [key, setKey] = useState("");
+    const [mappingValueString, setMappingValueString] = useState("");
     const [aleo] = useAleoWASM();
-    const { endpointUrl: selectedEndpoint } = useNetwork();
+    const { selectedEndpoint } = useNetworkContext();
+    const { setWasmLoadingMessage } = useWasmLoadingContext();
     const { enqueueSnackbar } = useSnackbar();
 
     const onProgramNameChange = (event) => {
         setProgramName(event.target.value);
     };
 
-    const onGetMappingNames = async () => {
-        if (programName === "") {
-            enqueueSnackbar("Please enter a program name", { variant: "error" });
+    const onMappingNameChange = (event) => {
+        setMappingName(event.target.value);
+    };
+
+    const onKeyChange = (event) => {
+        setKey(event.target.value);
+    };
+
+    const onGetMappingValue = async () => {
+        if (programName === "" || mappingName === "" || key === "") {
+            enqueueSnackbar("Please enter a program name, mapping name, and key", { variant: "error" });
             return;
         }
 
         try {
-            const loadingKey = enqueueSnackbar("Getting mapping names...", { 
-                variant: "info",
-                persist: true 
-            });
-            const mappingNames = await aleo.getMappingNames(programName, selectedEndpoint);
-            setMappingNamesString(JSON.stringify(mappingNames, null, 2));
-            enqueueSnackbar("Mapping names retrieved successfully!", { variant: "success" });
-            enqueueSnackbar.close(loadingKey);
+            setWasmLoadingMessage("Getting mapping value...");
+            const mappingValue = await aleo.getMappingValue(programName, mappingName, key, selectedEndpoint);
+            setMappingValueString(JSON.stringify(mappingValue, null, 2));
+            setWasmLoadingMessage("");
+            enqueueSnackbar("Mapping value retrieved successfully!", { variant: "success" });
         } catch (error) {
             console.error(error);
-            enqueueSnackbar(`Error getting mapping names: ${error.message}`, { variant: "error" });
+            setWasmLoadingMessage("");
+            enqueueSnackbar(`Error getting mapping value: ${error.message}`, { variant: "error" });
         }
     };
 
@@ -42,7 +52,7 @@ export const GetMappingNames = () => {
         return (
             <Card sx={{ width: "100%", p: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                    Get Mapping Names
+                    Get Mapping Value
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <TextField
@@ -59,28 +69,42 @@ export const GetMappingNames = () => {
                             ),
                         }}
                     />
+                    <TextField
+                        fullWidth
+                        label="Mapping Name"
+                        variant="outlined"
+                        value={mappingName}
+                        onChange={onMappingNameChange}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Key"
+                        variant="outlined"
+                        value={key}
+                        onChange={onKeyChange}
+                    />
                     <Button
                         variant="contained"
                         color="primary"
-                        onClick={onGetMappingNames}
-                        disabled={!programName}
+                        onClick={onGetMappingValue}
+                        disabled={!programName || !mappingName || !key}
                     >
-                        Get Mapping Names
+                        Get Mapping Value
                     </Button>
-                    {mappingNamesString && (
+                    {mappingValueString && (
                         <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
                             <TextField
                                 fullWidth
-                                label="Mapping Names"
+                                label="Mapping Value"
                                 variant="outlined"
-                                value={mappingNamesString}
+                                value={mappingValueString}
                                 disabled
                                 multiline
                                 rows={4}
                                 InputProps={{
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <CopyButton data={mappingNamesString} />
+                                            <CopyButton data={mappingValueString} />
                                         </InputAdornment>
                                     ),
                                 }}
@@ -97,4 +121,4 @@ export const GetMappingNames = () => {
             </Typography>
         );
     }
-};
+}; 

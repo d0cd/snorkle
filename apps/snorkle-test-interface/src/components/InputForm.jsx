@@ -1,5 +1,5 @@
-import { Form, Input, Typography } from "antd";
-const { Title } = Typography;
+import { TextField, Typography, Box, Paper } from "@mui/material";
+
 const nameOrIndex = (field, index) => {
     if (field.name) {
         return field.name;
@@ -8,12 +8,15 @@ const nameOrIndex = (field, index) => {
 };
 
 const createFormField = (field, index) => (
-    <Form.Item
+    <TextField
+        key={nameOrIndex(field, index)}
         label={nameOrIndex(field, index)}
         name={nameOrIndex(field, index)}
-    >
-        <Input placeholder={field.type} />
-    </Form.Item>
+        placeholder={field.type}
+        fullWidth
+        margin="normal"
+        variant="outlined"
+    />
 );
 
 export const FormGenerator = ({ formData }) => {
@@ -21,10 +24,12 @@ export const FormGenerator = ({ formData }) => {
         return fields.map((field, index) => {
             if (field.members) {
                 return (
-                    <div key={nameOrIndex(field, index)}>
-                        <Title level={4}>{nameOrIndex(field, index)}</Title>
+                    <Box key={nameOrIndex(field, index)} sx={{ mb: 3 }}>
+                        <Typography variant="h5" gutterBottom>
+                            {nameOrIndex(field, index)}
+                        </Typography>
                         {renderFormFields(field.members)}
-                    </div>
+                    </Box>
                 );
             }
             return createFormField(field, index);
@@ -32,15 +37,17 @@ export const FormGenerator = ({ formData }) => {
     };
 
     return (
-        <div>
+        <Box>
             {formData.map((funcData, index) => (
-                <div key={index}>
-                    <Title level={3}>
+                <Paper key={index} sx={{ p: 3, mb: 3 }}>
+                    <Typography variant="h4" gutterBottom>
                         {"function: " + funcData.functionID}
-                    </Title>
-                    <Form>{renderFormFields(funcData.inputs)}</Form>
-                </div>
+                    </Typography>
+                    <Box component="form" noValidate autoComplete="off">
+                        {renderFormFields(funcData.inputs)}
+                    </Box>
+                </Paper>
             ))}
-        </div>
+        </Box>
     );
 };

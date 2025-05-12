@@ -1,19 +1,26 @@
-import { useState } from "react";
-import copyToClipboard from "copy-to-clipboard";
-import { CheckCircleOutlined, CopyOutlined } from "@ant-design/icons";
+import { useState } from 'react';
+import { IconButton, Tooltip } from '@mui/material';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 
-export const CopyButton = (props) => {
-    const [copySuccess, setCopySuccess] = useState(false);
+export const CopyButton = ({ data }) => {
+    const [copied, setCopied] = useState(false);
 
-    const copy = () => {
-        copyToClipboard(props.data);
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000); // Switch back to `copy` icon after 2 seconds.
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(data);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+        }
     };
 
-    if (copySuccess) {
-        return <CheckCircleOutlined onClick={copy} />;
-    } else {
-        return <CopyOutlined onClick={copy} />;
-    }
+    return (
+        <Tooltip title={copied ? "Copied!" : "Copy to clipboard"}>
+            <IconButton onClick={handleCopy} size="small">
+                {copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+            </IconButton>
+        </Tooltip>
+    );
 };

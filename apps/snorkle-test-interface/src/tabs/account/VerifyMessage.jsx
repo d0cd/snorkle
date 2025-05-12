@@ -1,138 +1,83 @@
-import { useEffect, useRef, useState } from "react";
-import { Card, Form, Input } from "antd";
+import { useState } from "react";
 import { useAleoWASM } from "../../aleo-wasm-hook";
-import { KeyDropdown } from "../../components/KeyDropdown";
+import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress
+} from "@mui/material";
 
 export const VerifyMessage = () => {
-    const [inputAddress, setInputAddress] = useState(null);
-    const [verified, setVerified] = useState(false);
-    const [signatureInput, setSignatureInput] = useState(null);
-    const [messageInput, setMessageInput] = useState(null);
-    const [addressInput, setAddressInput] = useState("");
-    const didMount = useRef(false);
-    const [aleo] = useAleoWASM();
-    const textEncoder = new TextEncoder();
+    const [aleoWASM] = useAleoWASM();
+    const [message, setMessage] = useState("");
+    const [signature, setSignature] = useState("");
+    const [address, setAddress] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [verificationResult, setVerificationResult] = useState(null);
+    const { enqueueSnackbar } = useSnackbar();
 
-    const attemptVerify = () => {
-        if (
-            messageInput !== null &&
-            signatureInput !== null &&
-            inputAddress !== null
-        ) {
-            try {
-                let messageBytes = textEncoder.encode(messageInput);
-                let signature = aleo.Signature.from_string(signatureInput);
-                let isVerified = inputAddress.verify(messageBytes, signature);
-                setVerified(isVerified);
-            } catch (error) {
-                console.warn(error);
-                setVerified(false);
-            }
-        }
-    };
-
-    const onAddressChange = (event) => {
-        setAddressInput(event.target.value);
+    const onVerify = () => {
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Verifying message...", { 
+            persist: true,
+            variant: "info"
+        });
         try {
-            setInputAddress(aleo.Address.from_string(event.target.value));
-        } catch (error) {
-            setInputAddress(null);
-            console.warn(error);
+            const result = aleoWASM.verifyMessage(message, signature, address);
+            setVerificationResult(result);
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Message verified successfully!", { variant: "success" });
+        } catch (e) {
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error verifying message: " + e.message, { variant: "error" });
         } finally {
-            setVerified(false);
-            setMessageInput(null);
-            setSignatureInput(null);
+            setLoading(false);
         }
     };
 
-    const handleDropdownSelect = (val) => {
-        setAddressInput(val);
-        try {
-            setInputAddress(aleo.Address.from_string(val));
-        } catch (error) {
-            setInputAddress(null);
-            console.warn(error);
-        } finally {
-            setVerified(false);
-            setMessageInput(null);
-            setSignatureInput(null);
-        }
-    };
-
-    const onMessageChange = (event) => {
-        setMessageInput(event.target.value);
-    };
-
-    const onSignatureChange = (event) => {
-        setSignatureInput(event.target.value);
-    };
-
-    const validateStatusSignature = () => {
-        return signatureInput !== null ? (verified ? "success" : "error") : "";
-    };
-
-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
-    useEffect(() => {
-        if (!didMount.current) {
-            didMount.current = true;
-        } else {
-            attemptVerify();
-        }
-    }, [messageInput, signatureInput, inputAddress, verified]);
-
-    if (aleo !== null) {
-        const messageString = () =>
-            messageInput !== null ? messageInput.toString() : "";
-        const signatureString = () =>
-            signatureInput !== null ? signatureInput.toString() : "";
-        return (
-            <Card
-                title="Verify a Message"
-                style={{ width: "100%"}}
-            >
-                <Form {...layout}>
-                    <Form.Item label="Address" colon={false}>
-                        <Input
-                            name="address"
-                            size="large"
-                            placeholder="Address"
-                            allowClear
-                            onChange={onAddressChange}
-                            value={addressInput}
-                            addonAfter={<KeyDropdown type="address" onSelect={handleDropdownSelect} />}
-                        />
-                    </Form.Item>
-                    <Form.Item label="Message" colon={false}>
-                        <Input
-                            name="Message"
-                            size="large"
-                            placeholder="Message"
-                            value={messageString()}
-                            onChange={onMessageChange}
-                        />
-                    </Form.Item>
-                    <Form.Item
+    return (
+        <Card>
+            <CardContent>
+                <Typography variant="h5" gutterBottom>Verify Message</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <TextField
+                        fullWidth
+                        label="Message"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        multiline
+                        rows={4}
+                    />
+                    <TextField
+                        fullWidth
                         label="Signature"
-                        colon={false}
-                        hasFeedback
-                        validateStatus={validateStatusSignature()}
+                        value={signature}
+                        onChange={(e) => setSignature(e.target.value)}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                    />
+                    <Button
+                        variant="contained"
+                        onClick={onVerify}
+                        disabled={loading}
                     >
-                        <Input
-                            name="Signature"
-                            size="large"
-                            placeholder="Signature"
-                            value={signatureString()}
-                            onChange={onSignatureChange}
-                        />
-                    </Form.Item>
-                </Form>
-            </Card>
-        );
-    } else {
-        return (
-            <h3>
-                <center>Loading...</center>
-            </h3>
-        );
-    }
+                        {loading ? <CircularProgress size={24} /> : "Verify"}
+                    </Button>
+                    {verificationResult !== null && (
+                        <Typography variant="body1" color={verificationResult ? "success.main" : "error.main"}>
+                            {verificationResult ? "Message verified successfully!" : "Message verification failed!"}
+                        </Typography>
+                    )}
+                </Box>
+            </CardContent>
+        </Card>
+    );
 };

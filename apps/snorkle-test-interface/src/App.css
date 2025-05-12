@@ -17,31 +17,33 @@ input[type="text"]:disabled {
 .headerDark {
     font-family: "AleoSans";
     color: white;
-    font-size:32px;
-    margin-left:2rem;
-    a {
-        color: white;
-    }
+    font-size: 32px;
+    margin-left: 2rem;
+}
+
+.headerDark a {
+    color: white;
 }
 
 .headerLight {
     font-family: "AleoSans";
     color: black;
-    font-size:32px;
-    margin-left:2rem;
-    a{
-        color: black;
-    }
+    font-size: 32px;
+    margin-left: 2rem;
 }
 
-/* Remove border from Ant Design Card in light mode */
-:root .ant-card {
-  border: none !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+.headerLight a {
+    color: black;
+}
+
+/* Remove border from Material UI Card in light mode */
+.MuiCard-root {
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
 }
 
 /* Remove border from top-level containers in light mode */
 body, #root, #root > div {
-  border: none !important;
-  box-shadow: none !important;
+    border: none !important;
+    box-shadow: none !important;
 }

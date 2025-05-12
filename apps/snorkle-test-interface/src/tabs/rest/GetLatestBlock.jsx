@@ -1,8 +1,8 @@
 import {useMemo, useState} from "react";
-import { Button, Card, Col, Divider, Form, Input, Row } from "antd";
+import { Button, Card, Box, Paper } from "@mui/material";
 import axios from "axios";
 import { CopyButton } from "../../components/CopyButton";
-import { useNetwork } from "../../NetworkContext";
+import { useNetwork } from "../../contexts/NetworkContext";
 
 export const GetLatestBlock = () => {
     const [latestBlock, setLatestBlock] = useState(null);
@@ -20,50 +20,37 @@ export const GetLatestBlock = () => {
             });
     };
 
-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
-
     const latestBlockString = useMemo(() => {
         return latestBlock !== null ? latestBlock.toString() : ""
     }, [latestBlock]);
 
     return (
-        <Card
-            title="Get Latest Block"
-            style={{ width: "100%" }}
-        >
-            <Row justify="center">
-                <Col>
-                    <Button
-                        type="primary"
-
-                        size="middle"
-                        onClick={tryRequest}
-                    >
-                        Get Latest Block
-                    </Button>
-                </Col>
-            </Row>
-            {latestBlock !== null ? (
-                <Form {...layout}>
-                    <Divider />
-                    <Row align="middle">
-                        <Col span={23}>
-                            <Form.Item label="Block" colon={false}>
-                                <Input.TextArea
-                                    size="large"
-                                    rows={15}
-                                    placeholder="Block"
-                                    value={latestBlockString}
-                                    disabled
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col span={1} align="middle">
-                            <CopyButton data={latestBlockString} />
-                        </Col>
-                    </Row>
-                </Form>
-            ) : null}
+        <Card sx={{ width: "100%", p: 2 }}>
+            <Box sx={{ mb: 2 }}>
+                <Button 
+                    variant="contained" 
+                    onClick={tryRequest}
+                    color="primary"
+                >
+                    Get Latest Block
+                </Button>
+            </Box>
+            {latestBlockString && (
+                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                        <CopyButton data={latestBlockString} />
+                    </Box>
+                    <Box component="pre" sx={{ 
+                        m: 0, 
+                        p: 1, 
+                        bgcolor: 'background.default',
+                        borderRadius: 1,
+                        overflow: 'auto'
+                    }}>
+                        {latestBlockString}
+                    </Box>
+                </Paper>
+            )}
         </Card>
     );
 };

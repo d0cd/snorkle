@@ -1,8 +1,6 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import Main from "./main.jsx";
 import { NewAccount } from "./tabs/account/NewAccount.jsx";
-import { AccountFromPrivateKey } from "./tabs/account/AccountFromPrivateKey.jsx";
-import { AddressFromViewKey } from "./tabs/account/AddressFromViewKey.jsx";
 import { SignMessage } from "./tabs/account/SignMessage.jsx";
 import { VerifyMessage } from "./tabs/account/VerifyMessage.jsx";
 import { DecryptRecord } from "./tabs/protocol/DecryptRecord.jsx";
@@ -12,18 +10,10 @@ import { GetBlockByHeight } from "./tabs/rest/GetBlockByHeight.jsx";
 import { GetBlockByHash } from "./tabs/rest/GetBlockByHash.jsx";
 import { GetProgram } from "./tabs/rest/GetProgram.jsx";
 import { GetTransaction } from "./tabs/rest/GetTransaction.jsx";
-import { EncryptAccount } from "./tabs/advanced/EncryptAccount.jsx";
-import { DecryptAccount } from "./tabs/advanced/DecryptAccount.jsx";
-import { ExecuteLegacy } from "./tabs/develop/ExecuteLegacy.jsx";
-import { Deploy } from "./tabs/develop/Deploy.jsx";
-import { Transfer } from "./tabs/develop/Transfer.jsx";
-import { Split } from "./tabs/develop/Split.jsx";
-import { Join } from "./tabs/develop/Join.jsx";
-import { Execute } from "./tabs/develop/execute/";
+import { Deploy } from "./tabs/deploy/Deploy.jsx";
+import { Execute } from "./tabs/execute/";
 import { GetMappingNames } from "./tabs/rest/GetMappingNames.jsx";
 import { GetMappingValue } from "./tabs/rest/GetMappingValue.jsx";
-import TermsOfUse from "./pages/TermsOfUse";
-import PrivacyPolicy from "./pages/PrivacyPolicy"
 import { TransactionInfo } from "./tabs/protocol/TransactionInfo.jsx";
 import NotFound from "./pages/NotFound";
 
@@ -34,13 +24,7 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: (
-                    <>
-                        <SignMessage />
-                        <br />
-                        <VerifyMessage />
-                    </>
-                ),
+                element: <Navigate to="/execute" replace />,
             },
             {
                 path: "account",
@@ -83,51 +67,16 @@ export const router = createBrowserRouter([
                 ),
             },
             {
-                path: "develop",
+                path: "deploy",
                 element: (
-                    <>
-                        <Execute />
-                        <br />
                         <Deploy />
-                    </>
                 ),
             },
             {
-                path: "transfer",
-                element: (
-                    <>
-                        <Transfer />
-                        <br />
-                        <Split />
-                        <br />
-                        <Join />
-                    </>
-                ),
+                path: "execute",
+                element: <Execute />,
             },
-            {
-                path: "execute_legacy",
-                element: (
-                    <>
-                        <ExecuteLegacy />
-                    </>
-                ),
-            },
-            {
-                path: "privacy_policy",
-                element: (
-                    <>
-                        <PrivacyPolicy />
-                    </>
-                ),
-            },
-            {
-                path: "terms_of_use",
-                element: (
-                    <>
-                        <TermsOfUse />
-                    </>
-                ),
-            },
+            
             {
                 path: "*",
                 element: <NotFound />,

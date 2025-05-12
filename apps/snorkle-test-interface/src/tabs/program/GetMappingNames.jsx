@@ -3,43 +3,37 @@ import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from 
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
 import { KeyDropdown } from "../../components/KeyDropdown";
+import { useNetworkContext } from "../../contexts/NetworkContext";
 import { useSnackbar } from "notistack";
 
-export const DecryptRecord = () => {
-    const [recordString, setRecordString] = useState("");
-    const [viewKeyString, setViewKeyString] = useState("");
-    const [decryptedRecordString, setDecryptedRecordString] = useState("");
+export const GetMappingNames = () => {
+    const [programName, setProgramName] = useState("");
+    const [mappingNamesString, setMappingNamesString] = useState("");
     const [aleo] = useAleoWASM();
+    const { selectedEndpoint } = useNetworkContext();
+    const { setWasmLoadingMessage } = useWasmLoadingContext();
     const { enqueueSnackbar } = useSnackbar();
 
-    const onRecordChange = (event) => {
-        setRecordString(event.target.value);
+    const onProgramNameChange = (event) => {
+        setProgramName(event.target.value);
     };
 
-    const onViewKeyChange = (event) => {
-        setViewKeyString(event.target.value);
-    };
-
-    const onDecrypt = () => {
-        if (recordString === "" || viewKeyString === "") {
-            enqueueSnackbar("Please enter a record and view key", { variant: "error" });
+    const onGetMappingNames = async () => {
+        if (programName === "") {
+            enqueueSnackbar("Please enter a program name", { variant: "error" });
             return;
         }
 
         try {
-            const loadingKey = enqueueSnackbar("Decrypting record...", { 
-                variant: "info",
-                persist: true 
-            });
-            const viewKey = aleo.ViewKey.from_string(viewKeyString);
-            const record = aleo.Record.from_string(recordString);
-            const decryptedRecord = record.decrypt(viewKey);
-            setDecryptedRecordString(decryptedRecord.toString());
-            enqueueSnackbar("Record decrypted successfully!", { variant: "success" });
-            enqueueSnackbar.close(loadingKey);
+            setWasmLoadingMessage("Getting mapping names...");
+            const mappingNames = await aleo.getMappingNames(programName, selectedEndpoint);
+            setMappingNamesString(JSON.stringify(mappingNames, null, 2));
+            setWasmLoadingMessage("");
+            enqueueSnackbar("Mapping names retrieved successfully!", { variant: "success" });
         } catch (error) {
             console.error(error);
-            enqueueSnackbar(`Error decrypting record: ${error.message}`, { variant: "error" });
+            setWasmLoadingMessage("");
+            enqueueSnackbar(`Error getting mapping names: ${error.message}`, { variant: "error" });
         }
     };
 
@@ -47,26 +41,19 @@ export const DecryptRecord = () => {
         return (
             <Card sx={{ width: "100%", p: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                    Decrypt Record
+                    Get Mapping Names
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <TextField
                         fullWidth
-                        label="Record"
+                        label="Program Name"
                         variant="outlined"
-                        value={recordString}
-                        onChange={onRecordChange}
-                    />
-                    <TextField
-                        fullWidth
-                        label="View Key"
-                        variant="outlined"
-                        value={viewKeyString}
-                        onChange={onViewKeyChange}
+                        value={programName}
+                        onChange={onProgramNameChange}
                         InputProps={{
                             endAdornment: (
                                 <InputAdornment position="end">
-                                    <KeyDropdown type="viewKey" onSelect={onViewKeyChange} />
+                                    <KeyDropdown type="programName" onSelect={onProgramNameChange} />
                                 </InputAdornment>
                             ),
                         }}
@@ -74,25 +61,25 @@ export const DecryptRecord = () => {
                     <Button
                         variant="contained"
                         color="primary"
-                        onClick={onDecrypt}
-                        disabled={!recordString || !viewKeyString}
+                        onClick={onGetMappingNames}
+                        disabled={!programName}
                     >
-                        Decrypt
+                        Get Mapping Names
                     </Button>
-                    {decryptedRecordString && (
+                    {mappingNamesString && (
                         <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
                             <TextField
                                 fullWidth
-                                label="Decrypted Record"
+                                label="Mapping Names"
                                 variant="outlined"
-                                value={decryptedRecordString}
+                                value={mappingNamesString}
                                 disabled
                                 multiline
                                 rows={4}
                                 InputProps={{
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <CopyButton data={decryptedRecordString} />
+                                            <CopyButton data={mappingNamesString} />
                                         </InputAdornment>
                                     ),
                                 }}
@@ -109,4 +96,4 @@ export const DecryptRecord = () => {
             </Typography>
         );
     }
-};
+}; 

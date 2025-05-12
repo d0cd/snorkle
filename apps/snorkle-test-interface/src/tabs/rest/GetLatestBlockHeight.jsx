@@ -1,67 +1,67 @@
-import {useMemo, useState} from "react";
-import { Button, Card, Col, Divider, Form, Input, Row } from "antd";
+import { useState } from "react";
+import { useNetwork } from "../../contexts/NetworkContext";
+import { useSnackbar } from "notistack";
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    TextField,
+    Typography,
+    CircularProgress
+} from "@mui/material";
 import axios from "axios";
-import { CopyButton } from "../../components/CopyButton";
-import { useNetwork } from "../../NetworkContext";
 
 export const GetLatestBlockHeight = () => {
-    const [latestHeight, setLatestHeight] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [blockHeight, setBlockHeight] = useState("");
     const { endpointUrl, networkString } = useNetwork();
+    const { enqueueSnackbar } = useSnackbar();
 
-    const tryRequest = () => {
-        setLatestHeight(null);
-        axios
-            .get(`${endpointUrl}/${networkString}/block/height/latest`)
-            .then((response) =>
-                setLatestHeight(JSON.stringify(response.data, null, 2)),
-            )
-            .catch((error) => {
-                setLatestHeight(error.message || "API/network error");
-            });
+    const onGetLatestBlockHeight = async () => {
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Getting latest block height...", { 
+            persist: true,
+            variant: "info"
+        });
+        try {
+            const url = `${endpointUrl}/${networkString}/latest/height`;
+            const response = await axios.get(url);
+            setBlockHeight(response.data);
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Latest block height retrieved successfully!", { variant: "success" });
+        } catch (error) {
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Error getting latest block height: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
-
-    const latestHeightString = useMemo(() => {
-        return latestHeight !== null ? latestHeight.toString() : ""
-    }, [latestHeight]);
-
     return (
-        <Card
-            title="Get Latest Block Height"
-            style={{ width: "100%" }}
-        >
-            <Row justify="center">
-                <Col>
+        <Card>
+            <CardContent>
+                <Typography variant="h5" gutterBottom>Get Latest Block Height</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Button
-                        type="primary"
-
-                        size="middle"
-                        onClick={tryRequest}
+                        variant="contained"
+                        onClick={onGetLatestBlockHeight}
+                        disabled={loading}
                     >
-                        Get Latest Block Height
+                        {loading ? <CircularProgress size={24} /> : "Get Latest Block Height"}
                     </Button>
-                </Col>
-            </Row>
-            {latestHeight !== null ? (
-                <Form {...layout}>
-                    <Divider />
-                    <Form.Item label="Block" colon={false}>
-                        <Input
-                            size="large"
-                            rows={1}
-                            placeholder="Block"
-                            value={latestHeightString}
-                            addonAfter={
-                                <CopyButton
-                                    data={latestHeightString}
-                                />
-                            }
-                            disabled
+                    {blockHeight && (
+                        <TextField
+                            fullWidth
+                            label="Latest Block Height"
+                            value={blockHeight}
+                            InputProps={{
+                                readOnly: true,
+                            }}
                         />
-                    </Form.Item>
-                </Form>
-            ) : null}
+                    )}
+                </Box>
+            </CardContent>
         </Card>
     );
 };

@@ -1,31 +1,44 @@
-import { useKeyVault } from "../KeyVaultContext";
-import { Dropdown, Button, Menu } from "antd";
-import { KeyOutlined, DownOutlined } from "@ant-design/icons";
+import { useState } from 'react';
+import { IconButton, Menu, MenuItem } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
-export function KeyDropdown({ type, onSelect, buttonType = 'default', size = 'middle' }) {
-  const { keys } = useKeyVault();
-  const filtered = keys.filter(k => !!k[type]);
-  const menu = (
-    <Menu>
-      {filtered.length === 0 ? (
-        <Menu.Item disabled>No saved keys</Menu.Item>
-      ) : (
-        filtered.map(k => (
-          <Menu.Item key={k.id} onClick={() => onSelect(k[type])}>
-            <span style={{ fontWeight: 500 }}>{k.name}</span>
-            <span style={{ color: '#888', marginLeft: 8, fontSize: 12 }}>
-              {type === 'address' ? k.address.slice(0, 8) + '...' : k[type].slice(0, 8) + '...'}
-            </span>
-          </Menu.Item>
-        ))
-      )}
-    </Menu>
-  );
-  return (
-    <Dropdown overlay={menu} trigger={["click"]} placement="bottomRight">
-      <Button icon={<KeyOutlined />} size={size} type={buttonType} style={{ marginLeft: 4 }}>
-        <DownOutlined />
-      </Button>
-    </Dropdown>
-  );
-} 
+export const KeyDropdown = ({ type, onSelect }) => {
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
+
+    const handleClick = (event) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleSelect = (value) => {
+        onSelect({ target: { value } });
+        handleClose();
+    };
+
+    return (
+        <>
+            <IconButton
+                onClick={handleClick}
+                size="small"
+                aria-controls={open ? 'key-menu' : undefined}
+                aria-haspopup="true"
+                aria-expanded={open ? 'true' : undefined}
+            >
+                <KeyboardArrowDownIcon />
+            </IconButton>
+            <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+                onClick={handleClose}
+            >
+                <MenuItem onClick={() => handleSelect('')}>Clear</MenuItem>
+                <MenuItem onClick={() => handleSelect('example')}>Example</MenuItem>
+            </Menu>
+        </>
+    );
+}; 

@@ -1,8 +1,8 @@
 import {useMemo, useState} from "react";
-import { Card, Divider, Form, Input, Row, Col } from "antd";
+import { Card, TextField, Box, Paper, Grid, Typography } from "@mui/material";
 import axios from "axios";
 import { CopyButton } from "../../components/CopyButton";
-import { useNetwork } from "../../NetworkContext";
+import { useNetwork } from "../../contexts/NetworkContext";
 
 export const GetBlockByHeight = () => {
     const [blockByHeight, setBlockByHeight] = useState(null);
@@ -10,11 +10,13 @@ export const GetBlockByHeight = () => {
     const { endpointUrl, networkString } = useNetwork();
 
     // Calls `tryRequest` when the search bar input is entered
-    const onSearch = (value) => {
-        try {
-            tryRequest(value);
-        } catch (error) {
-            console.error(error);
+    const onSearch = (event) => {
+        if (event.key === 'Enter') {
+            try {
+                tryRequest(event.target.value);
+            } catch (error) {
+                console.error(error);
+            }
         }
     };
 
@@ -34,53 +36,48 @@ export const GetBlockByHeight = () => {
             });
     };
 
-    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
-
     const blockString = useMemo(() => {
         return blockByHeight !== null ? blockByHeight.toString() : ""
     }, [blockByHeight]);
 
     return (
-        <Card
-            title="Get Block By Height"
-            style={{ width: "100%" }}
-        >
-            <Form {...layout}>
-                <Form.Item
+        <Card sx={{ width: "100%", p: 2 }}>
+            <Typography variant="h6" gutterBottom>
+                Get Block By Height
+            </Typography>
+            <Box sx={{ mb: 2 }}>
+                <TextField
+                    fullWidth
                     label="Block Height"
-                    colon={false}
-                    validateStatus={status}
-                >
-                    <Input.Search
-                        name="height"
-                        size="large"
-                        placeholder="Block Height"
-                        allowClear
-                        onSearch={onSearch}
-                    />
-                </Form.Item>
-            </Form>
-            {blockByHeight !== null ? (
-                <Form {...layout}>
-                    <Divider />
-                    <Row align="middle">
-                        <Col span={23}>
-                            <Form.Item label="Block" colon={false}>
-                                <Input.TextArea
-                                    size="large"
-                                    rows={15}
-                                    placeholder="Block"
-                                    value={blockByHeight}
-                                    disabled
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col span={1} align="middle">
-                            <CopyButton data={blockString} />
-                        </Col>
-                    </Row>
-                </Form>
-            ) : null}
+                    variant="outlined"
+                    onKeyPress={onSearch}
+                    error={status === "error"}
+                    helperText={status === "error" ? "Invalid block height" : ""}
+                />
+            </Box>
+            {blockByHeight !== null && (
+                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                    <Grid container spacing={2}>
+                        <Grid item xs={11}>
+                            <Box component="pre" sx={{ 
+                                m: 0, 
+                                p: 1, 
+                                bgcolor: 'background.default',
+                                borderRadius: 1,
+                                overflow: 'auto',
+                                maxHeight: '500px'
+                            }}>
+                                {blockString}
+                            </Box>
+                        </Grid>
+                        <Grid item xs={1}>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', height: '100%' }}>
+                                <CopyButton data={blockString} />
+                            </Box>
+                        </Grid>
+                    </Grid>
+                </Paper>
+            )}
         </Card>
     );
 };

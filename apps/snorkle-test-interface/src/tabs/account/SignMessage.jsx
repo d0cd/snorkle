@@ -1,5 +1,5 @@
 import {useMemo, useState} from "react";
-import { Card, Divider, Form, Input } from "antd";
+import { Card, TextField, Box, Paper, Typography, InputAdornment } from "@mui/material";
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
 import { KeyDropdown } from "../../components/KeyDropdown";
@@ -50,60 +50,60 @@ export const SignMessage = () => {
         }
     };
 
-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
-
     if (aleo !== null) {
         return (
-            <Card
-                title="Sign a Message"
-                style={{ width: "100%" }}
-            >
-                <Form {...layout}>
-                    <Form.Item label="Private Key" colon={false}>
-                        <Input
-                            name="privateKey"
-                            size="large"
-                            placeholder="Private Key"
-                            allowClear
-                            onChange={onKeyChange}
-                            value={inputValue}
-                            addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
-                        />
-                    </Form.Item>
-                    <Form.Item label="Message" colon={false}>
-                        <Input
-                            name="Message"
-                            size="large"
-                            placeholder="Message"
-                            value={messageString}
-                            allowClear={true}
-                            onChange={onMessageChange}
-                        />
-                    </Form.Item>
-                </Form>
-                {signingAccount ? (
-                    <Form {...layout}>
-                        <Divider />
-                        <Form.Item label="Signature" colon={false}>
-                            <Input
-                                size="large"
-                                placeholder="Signature"
+            <Card sx={{ width: "100%", p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                    Sign a Message
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <TextField
+                        fullWidth
+                        label="Private Key"
+                        variant="outlined"
+                        value={inputValue}
+                        onChange={onKeyChange}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Message"
+                        variant="outlined"
+                        value={messageString}
+                        onChange={onMessageChange}
+                    />
+                    {signingAccount && (
+                        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                            <TextField
+                                fullWidth
+                                label="Signature"
+                                variant="outlined"
                                 value={signatureString}
-                                addonAfter={
-                                    <CopyButton data={signatureString} />
-                                }
                                 disabled
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <CopyButton data={signatureString} />
+                                        </InputAdornment>
+                                    ),
+                                }}
                             />
-                        </Form.Item>
-                    </Form>
-                ) : null}
+                        </Paper>
+                    )}
+                </Box>
             </Card>
         );
     } else {
         return (
-            <h3>
-                <center>Loading...</center>
-            </h3>
+            <Typography variant="h6" align="center">
+                Loading...
+            </Typography>
         );
     }
 };

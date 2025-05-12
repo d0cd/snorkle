@@ -3,8 +3,8 @@ import { okaidia } from "@uiw/codemirror-theme-okaidia";
 import { noctisLilac } from "@uiw/codemirror-theme-noctis-lilac";
 import { simpleMode } from "@codemirror/legacy-modes/mode/simple-mode";
 import { StreamLanguage } from "@codemirror/language";
-import { theme } from "antd";
 import { useState } from "react";
+import { useTheme } from "@mui/material";
 
 const aleoSyntaxHighlight = {
     start: [
@@ -45,34 +45,32 @@ const aleoSyntaxHighlight = {
 
 export function CodeEditor({ value, onChange }) {
     const [isFocused, setIsFocused] = useState(false);
-    const { token } = theme.useToken();
+    const theme = useTheme();
 
     return (
         <section
             style={{
                 overflow: "auto",
-                borderRadius: token.borderRadius,
+                borderRadius: theme.shape.borderRadius,
                 height: "300px",
                 outline: isFocused
-                    ? `1px solid ${token.colorPrimaryHover}`
+                    ? `1px solid ${theme.palette.primary.main}`
                     : "none",
                 boxShadow: isFocused
-                    ? `0 0 0 ${token.controlOutlineWidth + 1}px ${
-                          token.controlOutline
-                      }`
+                    ? `0 0 0 2px ${theme.palette.primary.main}`
                     : "none",
             }}
         >
             <CodeMirror
                 style={{
                     overflow: "auto",
-                    borderRadius: token.borderRadius,
+                    borderRadius: theme.shape.borderRadius,
                 }}
                 value={value}
                 extensions={[
                     StreamLanguage.define(simpleMode(aleoSyntaxHighlight)),
                 ]}
-                theme={token.colorBgBase === "#000" ? okaidia : noctisLilac}
+                theme={theme.palette.mode === "dark" ? okaidia : noctisLilac}
                 onChange={onChange}
                 height="300px"
                 option={{ indentUnit: 4 }}

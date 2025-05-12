@@ -1,51 +1,70 @@
 import "./App.css";
 import { useEffect, useState } from "react";
-import { App, ConfigProvider, Layout, Menu, Switch, theme, Select, AutoComplete, Button } from "antd";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { NetworkProvider, useNetwork } from "./NetworkContext";
-import { Tooltip } from "antd";
-import { KeyVaultProvider } from "./KeyVaultContext";
+import { NetworkProvider, useNetwork } from "./contexts/NetworkContext";
+import { KeyVaultProvider } from "./contexts/KeyVaultContext";
 import { ManageKeysModal } from "./components/ManageKeysModal";
-import { SettingOutlined } from "@ant-design/icons";
-
+import { WasmLoadingMessage } from "./components/WasmLoadingMessage";
+import { SnackbarProvider } from "notistack";
 import {
-    ApiOutlined,
-    CodeOutlined,
-    PlusOutlined,
-    ProfileOutlined,
-    SwapOutlined,
-    ToolOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
-import { WasmLoadingMessage } from "./components/WasmLoadingMessage.jsx";
-
-const { Content, Footer, Sider } = Layout;
+    Box,
+    Drawer,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Switch,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    TextField,
+    Autocomplete,
+    Button,
+    Typography,
+    useTheme,
+    ThemeProvider,
+    createTheme,
+    CssBaseline,
+    IconButton,
+    Tooltip
+} from "@mui/material";
+import {
+    Api as ApiIcon,
+    Code as CodeIcon,
+    Add as AddIcon,
+    Person as PersonIcon,
+    SwapHoriz as SwapHorizIcon,
+    Build as BuildIcon,
+    Person as UserIcon,
+    Settings as SettingsIcon
+} from "@mui/icons-material";
 
 const menuItems = [
     {
-        label: <Link to="/account">Account</Link>,
-        key: "/account",
-        icon: <UserOutlined />,
+        label: "Account",
+        path: "/account",
+        icon: <UserIcon />,
     },
     {
-        label: <Link to="/record">Record</Link>,
-        key: "/record",
-        icon: <ProfileOutlined />,
+        label: "Record",
+        path: "/record",
+        icon: <PersonIcon />,
     },
     {
-        label: <Link to="/rest">REST API</Link>,
-        key: "/rest",
-        icon: <ApiOutlined />,
+        label: "REST API",
+        path: "/rest",
+        icon: <ApiIcon />,
     },
     {
-        label: <Link to="/develop">Develop</Link>,
-        key: "/develop",
-        icon: <CodeOutlined />,
+        label: "Deploy",
+        path: "/deploy",
+        icon: <BuildIcon />,
     },
     {
-        label: <Link to="/transfer">Transfer</Link>,
-        key: "transfer",
-        icon: <SwapOutlined />,
+        label: "Execute",
+        path: "/execute",
+        icon: <SwapHorizIcon />,
     },
 ];
 
@@ -54,39 +73,43 @@ function SidebarNetworkControls() {
         network, setNetwork, defaultNetworks,
         endpoint, setEndpoint, defaultEndpoints
     } = useNetwork();
-    // Only include non-custom endpoints in the options
+    
     const endpointOptions = defaultEndpoints
         .filter(opt => opt.value !== 'custom')
         .map(opt => ({ value: opt.url || opt.value, label: opt.label }));
-    // Find the selected endpoint object
+    
     const endpointObj = defaultEndpoints.find(e => e.value === endpoint);
-    // If endpoint is not a preset, treat as custom
     const isPreset = endpointObj && endpointObj.url;
     const endpointValue = isPreset ? endpointObj.url : endpoint;
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div>
-                <span style={{ fontWeight: 500, color: '#888' }}>Select Network</span>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
+            <FormControl fullWidth>
+                <InputLabel>Select Network</InputLabel>
                 <Select
                     value={network}
-                    onChange={setNetwork}
-                    style={{ width: '100%' }}
-                    options={defaultNetworks}
-                    autoComplete="off"
-                    autoFocus={false}
-                    allowClear={false}
-                    tabIndex={-1}
-                    data-lpignore="true"
-                />
-            </div>
-            <div style={{ marginTop: 8 }}>
-                <span style={{ fontWeight: 500, color: '#888' }}>API Endpoint</span>
-                <AutoComplete
+                    onChange={(e) => setNetwork(e.target.value)}
+                    label="Select Network"
+                >
+                    {defaultNetworks.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+            <FormControl fullWidth>
+                <Autocomplete
                     value={endpointValue}
                     options={endpointOptions}
-                    style={{ width: '100%' }}
-                    onChange={val => {
-                        // If the value matches a preset URL, set the endpoint to that preset
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="API Endpoint"
+                            variant="outlined"
+                        />
+                    )}
+                    onChange={(_, val) => {
                         const preset = defaultEndpoints.find(e => e.url === val);
                         if (preset) {
                             setEndpoint(preset.value);
@@ -94,102 +117,129 @@ function SidebarNetworkControls() {
                             setEndpoint(val);
                         }
                     }}
-                    data-lpignore="true"
-                    filterOption={(inputValue, option) =>
-                        option?.value?.toLowerCase().includes(inputValue.toLowerCase()) ||
-                        option?.label?.toLowerCase().includes(inputValue.toLowerCase())
+                    filterOptions={(options, { inputValue }) =>
+                        options.filter(
+                            (option) =>
+                                option.value.toLowerCase().includes(inputValue.toLowerCase()) ||
+                                option.label.toLowerCase().includes(inputValue.toLowerCase())
+                        )
                     }
                 />
-            </div>
-        </div>
+            </FormControl>
+        </Box>
     );
 }
 
 function Main() {
     const [menuIndex, setMenuIndex] = useState("account");
-
     const navigate = useNavigate();
     const location = useLocation();
-    const onClick = (e) => {
-        navigate(e.key);
-    };
-
-    useEffect(() => {
-        setMenuIndex(location.pathname);
-        // if (location.pathname === "/") {
-        //     navigate("/account");
-        // }
-    }, [location, navigate]);
-
     const [darkMode, setDarkMode] = useState(true);
     const [manageKeysOpen, setManageKeysOpen] = useState(false);
 
+    const theme = createTheme({
+        palette: {
+            mode: darkMode ? 'dark' : 'light',
+            primary: {
+                main: '#18e48f',
+            },
+        },
+    });
+
+    useEffect(() => {
+        setMenuIndex(location.pathname);
+    }, [location]);
+
     return (
-        <ConfigProvider
-            theme={{
-                algorithm: darkMode
-                    ? theme.darkAlgorithm
-                    : theme.defaultAlgorithm,
-                token: {
-                    colorPrimary: "#18e48f",
-                },
-            }}
-        >
-            <App>
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <SnackbarProvider maxSnack={3}>
                 <WasmLoadingMessage />
-                <Layout style={{ minHeight: "100vh" }}>
-                    {/* Top bar for dark mode toggle at top right */}
-                    <div style={{
-                        width: '100%',
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        alignItems: 'center',
-                        padding: '16px 32px 0 0',
-                        position: 'absolute',
-                        top: 12,
-                        right: 0,
-                        zIndex: 1000,
-                    }}>
-                        <Switch
-                            checked={darkMode}
-                            onChange={(value) => setDarkMode(value)}
-                            checkedChildren="Dark"
-                            unCheckedChildren="Light"
-                        />
-                    </div>
-                    <Sider breakpoint="lg" collapsedWidth="0" theme="light" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', minHeight: 220, gap: 24, paddingTop: 24 }}>
-                            <h1 className={darkMode ? "headerDark": "headerLight"} style={{ margin: 0, textAlign: 'center', fontSize: 40, lineHeight: 1.1 }}>
-                                <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>
-                                    snorkle<br />test
-                                </Link>
-                            </h1>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '0 16px' }}>
-                            <Menu
-                                theme="light"
-                                mode="inline"
-                                selectedKeys={[menuIndex]}
-                                items={menuItems}
-                                onClick={onClick}
-                            />
-                            <SidebarNetworkControls />
-                            <div style={{ textAlign: 'center' }}>
-                                <Button icon={<SettingOutlined />} onClick={() => setManageKeysOpen(true)}>
-                                    Manage Keys
-                                </Button>
-                            </div>
-                            <ManageKeysModal open={manageKeysOpen} onClose={() => setManageKeysOpen(false)} />
-                        </div>
-                    </Sider>
-                    <Layout>
-                        <Content style={{ padding: "50px 50px", margin: "0 auto", minWidth: "850px" }}>
-                            <Outlet />
-                        </Content>
-                    </Layout>
-                </Layout>
-            </App>
-        </ConfigProvider>
+                <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+                    <Box
+                        sx={{
+                            width: 240,
+                            flexShrink: 0,
+                            display: { xs: 'none', sm: 'block' },
+                            borderRight: 1,
+                            borderColor: 'divider',
+                        }}
+                    >
+                        <Box sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            justifyContent: 'flex-start', 
+                            minHeight: 220, 
+                            gap: 3, 
+                            pt: 3 
+                        }}>
+                            <Typography 
+                                variant="h3" 
+                                component={Link} 
+                                to="/" 
+                                sx={{ 
+                                    textDecoration: 'none',
+                                    color: 'inherit',
+                                    textAlign: 'center',
+                                    lineHeight: 1.1
+                                }}
+                            >
+                                snorkle<br />test
+                            </Typography>
+                        </Box>
+                        <List>
+                            {menuItems.map((item) => (
+                                <ListItem
+                                    button
+                                    key={item.path}
+                                    selected={location.pathname === item.path}
+                                    onClick={() => navigate(item.path)}
+                                >
+                                    <ListItemIcon>{item.icon}</ListItemIcon>
+                                    <ListItemText primary={item.label} />
+                                </ListItem>
+                            ))}
+                        </List>
+                        <SidebarNetworkControls />
+                        <Box sx={{ p: 2, textAlign: 'center' }}>
+                            <Button
+                                variant="outlined"
+                                startIcon={<SettingsIcon />}
+                                onClick={() => setManageKeysOpen(true)}
+                            >
+                                Manage Keys
+                            </Button>
+                        </Box>
+                    </Box>
+                    <Box
+                        component="main"
+                        sx={{
+                            flexGrow: 1,
+                            p: 3,
+                            width: { sm: `calc(100% - 240px)` },
+                            minWidth: '850px',
+                        }}
+                    >
+                        <Box sx={{
+                            position: 'absolute',
+                            top: 16,
+                            right: 32,
+                            zIndex: 1000,
+                        }}>
+                            <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+                                <Switch
+                                    checked={darkMode}
+                                    onChange={(e) => setDarkMode(e.target.checked)}
+                                />
+                            </Tooltip>
+                        </Box>
+                        <Outlet />
+                    </Box>
+                </Box>
+                <ManageKeysModal open={manageKeysOpen} onClose={() => setManageKeysOpen(false)} />
+            </SnackbarProvider>
+        </ThemeProvider>
     );
 }
 

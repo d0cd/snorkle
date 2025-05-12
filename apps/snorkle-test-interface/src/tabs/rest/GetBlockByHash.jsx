@@ -1,23 +1,27 @@
 import {useMemo, useState} from "react";
-import { Card, Divider, Form, Input, Row, Col } from "antd";
+import { Card, TextField, Box, Paper } from "@mui/material";
 import axios from "axios";
 import { CopyButton } from "../../components/CopyButton";
 
 export const GetBlockByHash = () => {
     const [blockByHash, setBlockByHash] = useState(null);
     const [status, setStatus] = useState("");
+    const [error, setError] = useState(false);
 
     // Calls `tryRequest` when the search bar input is entered.
-    const onSearch = (value) => {
-        try {
-            tryRequest(value);
-        } catch (error) {
-            console.error(error);
+    const onSearch = (event) => {
+        if (event.key === 'Enter') {
+            try {
+                tryRequest(event.target.value);
+            } catch (error) {
+                console.error(error);
+            }
         }
     };
 
     const tryRequest = (hash) => {
         setBlockByHash(null);
+        setError(false);
         try {
             if (hash) {
                 axios
@@ -28,6 +32,7 @@ export const GetBlockByHash = () => {
                     })
                     .catch((error) => {
                         setStatus("error");
+                        setError(true);
                         console.error(error);
                     });
             } else {
@@ -39,53 +44,38 @@ export const GetBlockByHash = () => {
         }
     };
 
-    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
-
     const blockString = useMemo(() => {
         return blockByHash !== null ? blockByHash.toString() : ""
     }, [blockByHash]);
 
     return (
-        <Card
-            title="Get Block By Hash"
-            style={{ width: "100%"}}
-        >
-            <Form {...layout}>
-                <Form.Item
+        <Card sx={{ width: "100%", p: 2 }}>
+            <Box sx={{ mb: 2 }}>
+                <TextField
+                    fullWidth
                     label="Block Hash"
-                    colon={false}
-                    validateStatus={status}
-                >
-                    <Input.Search
-                        name="hash"
-                        size="large"
-                        placeholder="Block Hash"
-                        allowClear
-                        onSearch={onSearch}
-                    />
-                </Form.Item>
-            </Form>
-            {blockByHash !== null ? (
-                <Form {...layout}>
-                    <Divider />
-                    <Row align="middle">
-                        <Col span={23}>
-                            <Form.Item label="Block" colon={false}>
-                                <Input.TextArea
-                                    size="large"
-                                    rows={15}
-                                    placeholder="Block"
-                                    value={blockString}
-                                    disabled
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col span={1} align="middle">
-                            <CopyButton data={blockString} />
-                        </Col>
-                    </Row>
-                </Form>
-            ) : null}
+                    variant="outlined"
+                    onKeyPress={onSearch}
+                    error={error}
+                    helperText={error ? "Invalid block hash" : ""}
+                />
+            </Box>
+            {blockString && (
+                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                        <CopyButton data={blockString} />
+                    </Box>
+                    <Box component="pre" sx={{ 
+                        m: 0, 
+                        p: 1, 
+                        bgcolor: 'background.default',
+                        borderRadius: 1,
+                        overflow: 'auto'
+                    }}>
+                        {blockString}
+                    </Box>
+                </Paper>
+            )}
         </Card>
     );
 };

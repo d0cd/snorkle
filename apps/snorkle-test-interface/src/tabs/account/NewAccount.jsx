@@ -1,120 +1,108 @@
 import { useState } from "react";
-import { Card, Divider, Form, Input, Modal } from "antd";
+import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from "@mui/material";
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
-import { useKeyVault } from "../../KeyVaultContext";
-import { KeyDropdown } from "../../components/KeyDropdown";
+import { useSnackbar } from "notistack";
 
 export const NewAccount = () => {
-    const [account, setAccount] = useState(null);
-    const [saveModal, setSaveModal] = useState(false);
-    const [saveName, setSaveName] = useState("");
+    const [privateKeyString, setPrivateKeyString] = useState("");
+    const [viewKeyString, setViewKeyString] = useState("");
+    const [addressString, setAddressString] = useState("");
     const [aleo] = useAleoWASM();
-    const { addKey } = useKeyVault();
+    const { enqueueSnackbar } = useSnackbar();
 
-    const handleDropdownSelect = (val) => {
+    const onGenerateAccount = () => {
+        const loadingKey = enqueueSnackbar("Generating account...", { 
+            variant: "info",
+            persist: true 
+        });
+
         try {
-            setAccount(aleo.PrivateKey.from_string(val));
+            const privateKey = aleo.PrivateKey.new();
+            const viewKey = privateKey.to_view_key();
+            const address = privateKey.to_address();
+            setPrivateKeyString(privateKey.to_string());
+            setViewKeyString(viewKey.to_string());
+            setAddressString(address.to_string());
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar("Account generated successfully!", { variant: "success" });
         } catch (error) {
             console.error(error);
-            setAccount(null);
+            enqueueSnackbar.close(loadingKey);
+            enqueueSnackbar(`Error generating account: ${error.message}`, { variant: "error" });
         }
-    };
-
-    const privateKey = () => (account !== null ? account.to_string() : "");
-    const viewKey = () =>
-        account !== null ? account.to_view_key().to_string() : "";
-    const address = () =>
-        account !== null ? account.to_address().to_string() : "";
-
-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
-
-    const handleSave = () => {
-        addKey({
-            name: saveName || `Account ${address().slice(0, 6)}`,
-            privateKey: privateKey(),
-            viewKey: viewKey(),
-            address: address(),
-        });
-        setSaveModal(false);
-        setSaveName("");
     };
 
     if (aleo !== null) {
         return (
-            <Card
-                title="Load Account"
-                style={{ width: "100%" }}
-            >
-                <Form {...layout}>
-                    <Form.Item label="Private Key" colon={false}>
-                        <Input
-                            size="large"
-                            placeholder="Enter or select a private key"
-                            value={privateKey()}
-                            addonAfter={<KeyDropdown type="privateKey" onSelect={handleDropdownSelect} />}
-                            disabled
-                        />
-                    </Form.Item>
-                </Form>
-                {account && (
-                    <Form {...layout}>
-                        <Divider />
-                        <Form.Item label="View Key" colon={false}>
-                            <Input
-                                size="large"
-                                placeholder="View Key"
-                                value={viewKey()}
-                                addonAfter={<CopyButton data={viewKey()} />}
+            <Card sx={{ width: "100%", p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                    Generate New Account
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={onGenerateAccount}
+                    >
+                        Generate Account
+                    </Button>
+                    {privateKeyString && (
+                        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                            <TextField
+                                fullWidth
+                                label="Private Key"
+                                variant="outlined"
+                                value={privateKeyString}
                                 disabled
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <CopyButton data={privateKeyString} />
+                                        </InputAdornment>
+                                    ),
+                                }}
                             />
-                        </Form.Item>
-                        <Form.Item label="Address" colon={false}>
-                            <Input
-                                size="large"
-                                placeholder="Address"
-                                value={address()}
-                                addonAfter={<CopyButton data={address()} />}
+                            <TextField
+                                fullWidth
+                                label="View Key"
+                                variant="outlined"
+                                value={viewKeyString}
                                 disabled
+                                sx={{ mt: 2 }}
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <CopyButton data={viewKeyString} />
+                                        </InputAdornment>
+                                    ),
+                                }}
                             />
-                        </Form.Item>
-                        <Form.Item>
-                            <Input
-                                placeholder="Account Name"
-                                value={saveName}
-                                onChange={e => setSaveName(e.target.value)}
-                                maxLength={32}
-                                style={{ marginBottom: 12 }}
-                                addonAfter={
-                                    <Input
-                                        type="button"
-                                        value="Save to Vault"
-                                        onClick={() => setSaveModal(true)}
-                                        style={{ border: 'none', background: 'none', cursor: 'pointer' }}
-                                    />
-                                }
+                            <TextField
+                                fullWidth
+                                label="Address"
+                                variant="outlined"
+                                value={addressString}
+                                disabled
+                                sx={{ mt: 2 }}
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <CopyButton data={addressString} />
+                                        </InputAdornment>
+                                    ),
+                                }}
                             />
-                        </Form.Item>
-                    </Form>
-                )}
-                <Modal
-                    title="Save Account to Vault"
-                    open={saveModal}
-                    onOk={handleSave}
-                    onCancel={() => setSaveModal(false)}
-                    okText="Save"
-                >
-                    <div style={{ fontSize: 12, color: '#888' }}>
-                        Private Key, View Key, and Address will be saved locally in your browser.
-                    </div>
-                </Modal>
+                        </Paper>
+                    )}
+                </Box>
             </Card>
         );
     } else {
         return (
-            <h3>
-                <center>Loading...</center>
-            </h3>
+            <Typography variant="h6" align="center">
+                Loading...
+            </Typography>
         );
     }
 };

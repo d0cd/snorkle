@@ -1,5 +1,9 @@
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import postcssImport from 'postcss-import';
+import postcssNested from 'postcss-nested';
+import postcssCustomProperties from 'postcss-custom-properties';
+import autoprefixer from 'autoprefixer';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -8,6 +12,9 @@ export default defineConfig({
         format: "es",
     },
     plugins: [react()],
+    resolve: {
+        extensions: ['.js', '.jsx', '.json']
+    },
     build: {
         target: "esnext",
         sourcemap: true,
@@ -23,7 +30,7 @@ export default defineConfig({
     },
     optimizeDeps: {
         exclude: ["@provablehq/wasm"],
-        include: ['react', 'react-dom', 'react-router-dom']
+        include: ['react', 'react-dom', 'react-router-dom', '@mui/material', '@mui/icons-material']
     },
     server: {
         fs: {
@@ -40,4 +47,14 @@ export default defineConfig({
             usePolling: true
         }
     },
+    css: {
+        postcss: {
+            plugins: [
+                postcssImport,
+                postcssNested,
+                postcssCustomProperties,
+                autoprefixer
+            ]
+        }
+    }
 });
