@@ -15,6 +15,7 @@ import { Execute } from "./tabs/execute/";
 import { GetMappingNames } from "./tabs/rest/GetMappingNames.jsx";
 import { GetMappingValue } from "./tabs/rest/GetMappingValue.jsx";
 import { TransactionInfo } from "./tabs/protocol/TransactionInfo.jsx";
+import { History } from "./tabs/history";
 import NotFound from "./pages/NotFound";
 
 export const router = createBrowserRouter([
@@ -76,7 +77,10 @@ export const router = createBrowserRouter([
                 path: "execute",
                 element: <Execute />,
             },
-            
+            {
+                path: "history",
+                element: <History />,
+            },
             {
                 path: "*",
                 element: <NotFound />,

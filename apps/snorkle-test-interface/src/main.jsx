@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { NetworkProvider, useNetwork } from "./contexts/NetworkContext";
 import { KeyVaultProvider } from "./contexts/KeyVaultContext";
+import { TransactionHistoryProvider } from "./contexts/TransactionHistoryContext";
 import { ManageKeysModal } from "./components/ManageKeysModal";
 import { WasmLoadingMessage } from "./components/WasmLoadingMessage";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { SnackbarProvider } from "notistack";
 import {
     Box,
@@ -13,7 +15,6 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
-    Switch,
     FormControl,
     InputLabel,
     Select,
@@ -37,7 +38,8 @@ import {
     SwapHoriz as SwapHorizIcon,
     Build as BuildIcon,
     Person as UserIcon,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
+    History as HistoryIcon
 } from "@mui/icons-material";
 
 const menuItems = [
@@ -65,6 +67,11 @@ const menuItems = [
         label: "Execute",
         path: "/execute",
         icon: <SwapHorizIcon />,
+    },
+    {
+        label: "History",
+        path: "/history",
+        icon: <HistoryIcon />,
     },
 ];
 
@@ -227,12 +234,10 @@ function Main() {
                             right: 32,
                             zIndex: 1000,
                         }}>
-                            <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
-                                <Switch
-                                    checked={darkMode}
-                                    onChange={(e) => setDarkMode(e.target.checked)}
-                                />
-                            </Tooltip>
+                            <ThemeToggle 
+                                darkMode={darkMode} 
+                                onToggle={() => setDarkMode(!darkMode)} 
+                            />
                         </Box>
                         <Outlet />
                     </Box>
@@ -247,7 +252,9 @@ export default function AppWithNetworkProvider() {
     return (
         <NetworkProvider>
             <KeyVaultProvider>
-                <Main />
+                <TransactionHistoryProvider>
+                    <Main />
+                </TransactionHistoryProvider>
             </KeyVaultProvider>
         </NetworkProvider>
     );

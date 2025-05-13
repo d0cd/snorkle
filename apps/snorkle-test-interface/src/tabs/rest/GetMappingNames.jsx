@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNetwork } from "../../contexts/NetworkContext";
 import { useSnackbar } from "notistack";
+import { DEFAULT_PROGRAMS } from "../../constants/programs";
 import {
     Box,
     Button,
@@ -10,7 +11,8 @@ import {
     Typography,
     CircularProgress,
     InputAdornment,
-    IconButton
+    IconButton,
+    Autocomplete
 } from "@mui/material";
 import { ContentCopy as CopyIcon } from "@mui/icons-material";
 import axios from "axios";
@@ -58,12 +60,20 @@ export const GetMappingNames = () => {
                 <CardContent>
                     <Typography variant="h5" gutterBottom>Get Mapping Names</Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <TextField
-                            fullWidth
-                            label="Program ID"
+                        <Autocomplete
+                            freeSolo
+                            options={DEFAULT_PROGRAMS}
                             value={programId}
-                            onChange={(e) => setProgramId(e.target.value)}
-                            placeholder="Enter program ID"
+                            onChange={(event, newValue) => setProgramId(newValue || "")}
+                            onInputChange={(event, newValue) => setProgramId(newValue)}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Program ID"
+                                    placeholder="Enter program ID or select from defaults"
+                                    fullWidth
+                                />
+                            )}
                         />
                         <Button
                             variant="contained"

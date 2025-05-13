@@ -28,11 +28,13 @@ import { useAleoWASM } from "../../aleo-wasm-hook";
 import { useKeyVault } from "../../contexts/KeyVaultContext";
 import { ManageKeysModal } from "../../components/ManageKeysModal";
 import { useEffect, useState } from "react";
+import { useTransactionHistory } from "../../contexts/TransactionHistoryContext";
 
 export const Execute = () => {
     const [formValues, setFormValues] = useState({});
     const [aleoWASM] = useAleoWASM();
     const { keys } = useKeyVault();
+    const { addTransaction } = useTransactionHistory();
     const theme = useTheme();
     const [manageKeysOpen, setManageKeysOpen] = useState(false);
 
@@ -105,6 +107,20 @@ export const Execute = () => {
                     privateKey: private_key,
                 });
             }
+
+            // After successful execution, add to history
+            const selectedKey = keys.find(k => k.id === values.selectedKeyId);
+            addTransaction({
+                type: 'execute',
+                transactionId: response.transactionId,
+                privateKey: selectedKey.privateKey,
+                functionName: functionName,
+                additionalData: {
+                    inputs: inputs,
+                    programId: program,
+                    // Add any other relevant data
+                }
+            });
         } catch (error) {
             setLoading(false);
             setModalResult({

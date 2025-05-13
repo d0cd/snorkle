@@ -4,6 +4,7 @@ import { useNetwork } from "../../contexts/NetworkContext";
 import { useKeyVault } from "../../contexts/KeyVaultContext";
 import { useSnackbar } from "notistack";
 import { useNavigate } from "react-router-dom";
+import { useTransactionHistory } from "../../contexts/TransactionHistoryContext";
 import {
     Box,
     Button,
@@ -33,6 +34,7 @@ export const Deploy = () => {
     const { keys } = useKeyVault();
     const { enqueueSnackbar } = useSnackbar();
     const navigate = useNavigate();
+    const { addTransaction } = useTransactionHistory();
 
     const selectedKey = keys.find(k => k.id === selectedKeyId);
 
@@ -85,6 +87,19 @@ export const Deploy = () => {
             setDeploymentString(deployment);
             enqueueSnackbar.close(loadingKey);
             enqueueSnackbar("Program deployed successfully!", { variant: "success" });
+
+            // After successful deployment, add to history
+            addTransaction({
+                type: 'deploy',
+                transactionId: deployment.transactionId,
+                privateKey: selectedKey.privateKey,
+                programName: programName,
+                additionalData: {
+                    programSource: programString,
+                    // Add any other relevant data
+                }
+            });
+
             navigate("/execute");
         } catch (error) {
             enqueueSnackbar.close(loadingKey);

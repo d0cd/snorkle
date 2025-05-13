@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from "@mui/material";
+import { Card, TextField, Box, Paper, Typography, Button, InputAdornment, Autocomplete } from "@mui/material";
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
 import { KeyDropdown } from "../../components/KeyDropdown";
@@ -7,6 +7,13 @@ import { useNetworkContext } from "../../contexts/NetworkContext";
 import { useProgramContext } from "../../contexts/ProgramContext";
 import { useWasmLoadingContext } from "../../contexts/WasmLoadingContext";
 import { useSnackbar } from "notistack";
+
+const DEFAULT_PROGRAMS = [
+    "credits.aleo",
+    "token_registry.aleo",
+    "proto_snorkle_bet_000.aleo",
+    "proto_snorkle_oracle_000.aleo"
+];
 
 export const LoadProgram = () => {
     const [programName, setProgramName] = useState("");
@@ -17,8 +24,8 @@ export const LoadProgram = () => {
     const { setWasmLoadingMessage } = useWasmLoadingContext();
     const { enqueueSnackbar } = useSnackbar();
 
-    const onProgramNameChange = (event) => {
-        setProgramName(event.target.value);
+    const onProgramNameChange = (event, newValue) => {
+        setProgramName(newValue || "");
     };
 
     const onLoadProgram = async () => {
@@ -43,51 +50,54 @@ export const LoadProgram = () => {
 
     if (aleo !== null) {
         return (
-            <Card sx={{ width: "100%", p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                    Load Program
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        label="Program Name"
-                        variant="outlined"
-                        value={programName}
-                        onChange={onProgramNameChange}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <KeyDropdown type="programName" onSelect={onProgramNameChange} />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={onLoadProgram}
-                        disabled={!programName}
-                    >
+            <Card>
+                <Box sx={{ p: 2 }}>
+                    <Typography variant="h6" gutterBottom>
                         Load Program
-                    </Button>
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                        <Autocomplete
+                            freeSolo
+                            options={DEFAULT_PROGRAMS}
+                            value={programName}
+                            onChange={onProgramNameChange}
+                            onInputChange={(event, newValue) => setProgramName(newValue)}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Program Name"
+                                    placeholder="Enter program name or select from defaults"
+                                    fullWidth
+                                />
+                            )}
+                            sx={{ flex: 1 }}
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={onLoadProgram}
+                            disabled={!programName}
+                        >
+                            Load
+                        </Button>
+                    </Box>
                     {programString && (
-                        <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-                            <TextField
-                                fullWidth
-                                label="Program"
-                                variant="outlined"
-                                value={programString}
-                                disabled
-                                multiline
-                                rows={4}
-                                InputProps={{
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <CopyButton data={programString} />
-                                        </InputAdornment>
-                                    ),
-                                }}
-                            />
+                        <Paper
+                            variant="outlined"
+                            sx={{
+                                mt: 2,
+                                p: 2,
+                                maxHeight: '400px',
+                                overflow: 'auto',
+                                fontFamily: 'monospace',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-all'
+                            }}
+                        >
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="subtitle2">Program Source</Typography>
+                                <CopyButton text={programString} />
+                            </Box>
+                            {programString}
                         </Paper>
                     )}
                 </Box>

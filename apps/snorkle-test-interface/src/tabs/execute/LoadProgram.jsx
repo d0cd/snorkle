@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSnackbar } from "notistack";
 import { useNetwork } from "../../contexts/NetworkContext";
+import { DEFAULT_PROGRAMS } from "../../constants/programs";
 import {
     Box,
     Button,
@@ -10,7 +11,8 @@ import {
     Typography,
     CircularProgress,
     InputAdornment,
-    Stack
+    Stack,
+    Autocomplete
 } from "@mui/material";
 import { Search as SearchIcon } from "@mui/icons-material";
 
@@ -62,18 +64,21 @@ export const LoadProgram = ({ onResponse }) => {
                 <Typography variant="h5" gutterBottom>Load Program</Typography>
                 <Stack spacing={2}>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                        <TextField
-                            fullWidth
-                            label="Program ID"
+                        <Autocomplete
+                            freeSolo
+                            options={DEFAULT_PROGRAMS}
                             value={programId}
-                            onChange={(e) => setProgramId(e.target.value)}
-                            placeholder="Enter program ID"
-                            disabled={loading}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                    onProgramSearch();
-                                }
-                            }}
+                            onChange={(event, newValue) => setProgramId(newValue || "")}
+                            onInputChange={(event, newValue) => setProgramId(newValue)}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Program ID"
+                                    placeholder="Enter program ID or select from defaults"
+                                    fullWidth
+                                />
+                            )}
+                            sx={{ flex: 1 }}
                         />
                         <Button
                             variant="contained"
