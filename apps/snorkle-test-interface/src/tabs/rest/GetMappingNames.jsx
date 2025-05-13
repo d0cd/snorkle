@@ -22,7 +22,7 @@ export const GetMappingNames = () => {
     const [programId, setProgramId] = useState("");
     const [mappingNames, setMappingNames] = useState("");
     const { endpointUrl, networkString } = useNetwork();
-    const { enqueueSnackbar } = useSnackbar();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
@@ -44,10 +44,10 @@ export const GetMappingNames = () => {
             const url = `${endpointUrl}/${networkString}/program/${programId}/mappings`;
             const response = await axios.get(url);
             setMappingNames(JSON.stringify(response.data, null, 2));
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Mapping names retrieved successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error getting mapping names: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);

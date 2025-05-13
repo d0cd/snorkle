@@ -18,8 +18,8 @@ import axios from "axios";
 export const GetLatestBlock = () => {
     const [loading, setLoading] = useState(false);
     const [block, setBlock] = useState("");
-    const { endpointUrl, networkString } = useNetwork();
-    const { enqueueSnackbar } = useSnackbar();
+    const { networkString } = useNetwork();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
@@ -33,13 +33,13 @@ export const GetLatestBlock = () => {
             variant: "info"
         });
         try {
-            const url = `${endpointUrl}/${networkString}/latest/block`;
+            const url = `/api/${networkString}/latest/block`;
             const response = await axios.get(url);
             setBlock(JSON.stringify(response.data, null, 2));
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Latest block retrieved successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error getting latest block: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);

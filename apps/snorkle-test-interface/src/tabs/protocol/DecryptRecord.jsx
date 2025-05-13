@@ -18,6 +18,7 @@ import {
     IconButton
 } from "@mui/material";
 import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const DecryptRecord = () => {
     const [aleoWASM] = useAleoWASM();
@@ -26,7 +27,7 @@ export const DecryptRecord = () => {
     const [loading, setLoading] = useState(false);
     const [decryptedRecord, setDecryptedRecord] = useState("");
     const { keys } = useKeyVault();
-    const { enqueueSnackbar } = useSnackbar();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const selectedKey = keys.find(k => k.id === selectedKeyId);
 
@@ -49,10 +50,10 @@ export const DecryptRecord = () => {
         try {
             const decrypted = aleoWASM.decryptRecord(record, selectedKey.viewKey);
             setDecryptedRecord(decrypted);
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Record decrypted successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error decrypting record: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);

@@ -22,9 +22,9 @@ export const GetMappingValue = () => {
     const [programId, setProgramId] = useState("");
     const [mappingName, setMappingName] = useState("");
     const [key, setKey] = useState("");
-    const [mappingValue, setMappingValue] = useState("");
-    const { endpointUrl, networkString } = useNetwork();
-    const { enqueueSnackbar } = useSnackbar();
+    const [value, setValue] = useState("");
+    const { networkString } = useNetwork();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
@@ -33,7 +33,7 @@ export const GetMappingValue = () => {
 
     const onGetMappingValue = async () => {
         if (!programId || !mappingName || !key) {
-            enqueueSnackbar("Please fill in all required fields", { variant: "error" });
+            enqueueSnackbar("Please enter program ID, mapping name, and key", { variant: "error" });
             return;
         }
 
@@ -43,13 +43,13 @@ export const GetMappingValue = () => {
             variant: "info"
         });
         try {
-            const url = `${endpointUrl}/${networkString}/program/${programId}/mapping/${mappingName}/${key}`;
+            const url = `/api/${networkString}/program/${programId}/mapping/${mappingName}/${key}`;
             const response = await axios.get(url);
-            setMappingValue(JSON.stringify(response.data, null, 2));
-            enqueueSnackbar.close(loadingKey);
+            setValue(JSON.stringify(response.data, null, 2));
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Mapping value retrieved successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error getting mapping value: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);
@@ -99,18 +99,18 @@ export const GetMappingValue = () => {
                         >
                             {loading ? <CircularProgress size={24} /> : "Get Mapping Value"}
                         </Button>
-                        {mappingValue && (
+                        {value && (
                             <TextField
                                 fullWidth
                                 label="Mapping Value"
-                                value={mappingValue}
+                                value={value}
                                 multiline
                                 rows={10}
                                 InputProps={{
                                     readOnly: true,
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <IconButton onClick={() => handleCopy(mappingValue)}>
+                                            <IconButton onClick={() => handleCopy(value)}>
                                                 <CopyIcon />
                                             </IconButton>
                                         </InputAdornment>

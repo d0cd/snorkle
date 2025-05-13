@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { CodeEditor } from "../execute/CodeEditor";
 import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const Deploy = () => {
     const [aleoWASM] = useAleoWASM();
@@ -32,7 +33,7 @@ export const Deploy = () => {
     const [deploymentString, setDeploymentString] = useState("");
     const { endpointUrl, networkString } = useNetwork();
     const { keys } = useKeyVault();
-    const { enqueueSnackbar } = useSnackbar();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
     const navigate = useNavigate();
     const { addTransaction } = useTransactionHistory();
 
@@ -85,7 +86,7 @@ export const Deploy = () => {
         try {
             const deployment = aleoWASM.deployProgram(programName, programString, selectedKey.privateKey);
             setDeploymentString(deployment);
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Program deployed successfully!", { variant: "success" });
 
             // After successful deployment, add to history
@@ -102,7 +103,7 @@ export const Deploy = () => {
 
             navigate("/execute");
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error deploying program: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);

@@ -3,33 +3,40 @@ import { Card, TextField, Box, Paper, Typography, Button, InputAdornment } from 
 import { CopyButton } from "../../components/CopyButton";
 import { useAleoWASM } from "../../aleo-wasm-hook";
 import { useSnackbar } from "notistack";
+import axios from "axios";
+import { useKeyVault } from "../../contexts/KeyVaultContext";
 
 export const NewAccount = () => {
     const [privateKeyString, setPrivateKeyString] = useState("");
     const [viewKeyString, setViewKeyString] = useState("");
     const [addressString, setAddressString] = useState("");
     const [aleo] = useAleoWASM();
-    const { enqueueSnackbar } = useSnackbar();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+    const [loading, setLoading] = useState(false);
+    const { addKey } = useKeyVault();
 
-    const onGenerateAccount = () => {
-        const loadingKey = enqueueSnackbar("Generating account...", { 
-            variant: "info",
-            persist: true 
+    const onGenerateAccount = async () => {
+        setLoading(true);
+        const loadingKey = enqueueSnackbar("Generating new account...", { 
+            persist: true,
+            variant: "info"
         });
-
         try {
-            const privateKey = aleo.PrivateKey.new();
-            const viewKey = privateKey.to_view_key();
-            const address = privateKey.to_address();
-            setPrivateKeyString(privateKey.to_string());
-            setViewKeyString(viewKey.to_string());
-            setAddressString(address.to_string());
-            enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar("Account generated successfully!", { variant: "success" });
+            const url = `/api/generate-account`;
+            const response = await axios.post(url);
+            addKey({
+                name: `Account ${response.data.address.slice(0, 6)}`,
+                privateKey: response.data.privateKey,
+                viewKey: response.data.viewKey,
+                address: response.data.address
+            });
+            closeSnackbar(loadingKey);
+            enqueueSnackbar("New account generated successfully!", { variant: "success" });
         } catch (error) {
-            console.error(error);
-            enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar(`Error generating account: ${error.message}`, { variant: "error" });
+            closeSnackbar(loadingKey);
+            enqueueSnackbar("Error generating account: " + error.message, { variant: "error" });
+        } finally {
+            setLoading(false);
         }
     };
 

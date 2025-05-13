@@ -19,6 +19,7 @@ import {
     Alert
 } from "@mui/material";
 import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const VerifyMessage = () => {
     const [aleoWASM] = useAleoWASM();
@@ -26,9 +27,9 @@ export const VerifyMessage = () => {
     const [signature, setSignature] = useState("");
     const [selectedKeyId, setSelectedKeyId] = useState("");
     const [loading, setLoading] = useState(false);
-    const [verificationResult, setVerificationResult] = useState(null);
+    const [verificationResult, setVerificationResult] = useState("");
     const { keys } = useKeyVault();
-    const { enqueueSnackbar } = useSnackbar();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const selectedKey = keys.find(k => k.id === selectedKeyId);
 
@@ -37,29 +38,35 @@ export const VerifyMessage = () => {
         enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const onVerify = async () => {
-        if (!message || !signature || !selectedKey) {
-            enqueueSnackbar("Please enter a message, signature, and select an account", { variant: "error" });
+    const onVerifyMessage = async () => {
+        if (!message || !signature) {
+            enqueueSnackbar("Please enter both message and signature", { variant: "error" });
+            return;
+        }
+
+        if (!selectedKey) {
+            enqueueSnackbar("Please select a key to verify with", { variant: "error" });
             return;
         }
 
         setLoading(true);
-        const loadingKey = enqueueSnackbar("Verifying signature...", { 
+        const loadingKey = enqueueSnackbar("Verifying message...", { 
             persist: true,
             variant: "info"
         });
         try {
-            const isValid = aleoWASM.verifyMessage(message, signature, selectedKey.address);
-            setVerificationResult(isValid);
-            enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar(
-                isValid ? "Signature verified successfully!" : "Invalid signature!",
-                { variant: isValid ? "success" : "error" }
-            );
+            const url = `/api/verify`;
+            const response = await axios.post(url, {
+                message,
+                signature,
+                publicKey: selectedKey.address
+            });
+            setVerificationResult(response.data.verified ? "Signature is valid" : "Signature is invalid");
+            closeSnackbar(loadingKey);
+            enqueueSnackbar("Message verification completed!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar("Error verifying signature: " + error.message, { variant: "error" });
-            setVerificationResult(false);
+            closeSnackbar(loadingKey);
+            enqueueSnackbar("Error verifying message: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);
         }
@@ -125,21 +132,18 @@ export const VerifyMessage = () => {
                         )}
                         <Button
                             variant="contained"
-                            onClick={onVerify}
+                            onClick={onVerifyMessage}
                             disabled={loading || !selectedKey}
                             size="large"
                         >
                             {loading ? <CircularProgress size={24} /> : "Verify Signature"}
                         </Button>
-                        {verificationResult !== null && (
+                        {verificationResult && (
                             <Alert 
-                                severity={verificationResult ? "success" : "error"}
+                                severity={verificationResult === "Signature is valid" ? "success" : "error"}
                                 sx={{ mt: 2 }}
                             >
-                                {verificationResult 
-                                    ? "The signature is valid and was created by the selected account."
-                                    : "The signature is invalid or was not created by the selected account."
-                                }
+                                {verificationResult}
                             </Alert>
                         )}
                     </Box>

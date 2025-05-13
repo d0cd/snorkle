@@ -17,18 +17,18 @@ import axios from "axios";
 
 export const GetBlockByHeight = () => {
     const [loading, setLoading] = useState(false);
-    const [height, setHeight] = useState("");
+    const [blockHeight, setBlockHeight] = useState("");
     const [block, setBlock] = useState("");
-    const { endpointUrl, networkString } = useNetwork();
-    const { enqueueSnackbar } = useSnackbar();
+    const { networkString } = useNetwork();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
         enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const onGetBlock = async () => {
-        if (!height) {
+    const onGetBlockByHeight = async () => {
+        if (!blockHeight) {
             enqueueSnackbar("Please enter a block height", { variant: "error" });
             return;
         }
@@ -39,13 +39,13 @@ export const GetBlockByHeight = () => {
             variant: "info"
         });
         try {
-            const url = `${endpointUrl}/${networkString}/block/${height}`;
+            const url = `/api/${networkString}/block/${blockHeight}`;
             const response = await axios.get(url);
             setBlock(JSON.stringify(response.data, null, 2));
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Block retrieved successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error getting block: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);
@@ -61,14 +61,14 @@ export const GetBlockByHeight = () => {
                         <TextField
                             fullWidth
                             label="Block Height"
-                            value={height}
-                            onChange={(e) => setHeight(e.target.value)}
+                            value={blockHeight}
+                            onChange={(e) => setBlockHeight(e.target.value)}
                             placeholder="Enter block height"
                             type="number"
                         />
                         <Button
                             variant="contained"
-                            onClick={onGetBlock}
+                            onClick={onGetBlockByHeight}
                             disabled={loading}
                             size="large"
                         >

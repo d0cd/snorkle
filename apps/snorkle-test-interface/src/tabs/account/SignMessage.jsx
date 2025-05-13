@@ -18,6 +18,7 @@ import {
     IconButton
 } from "@mui/material";
 import { ContentCopy as CopyIcon } from "@mui/icons-material";
+import axios from "axios";
 
 export const SignMessage = () => {
     const [aleoWASM] = useAleoWASM();
@@ -26,7 +27,7 @@ export const SignMessage = () => {
     const [loading, setLoading] = useState(false);
     const [signature, setSignature] = useState("");
     const { keys } = useKeyVault();
-    const { enqueueSnackbar } = useSnackbar();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const selectedKey = keys.find(k => k.id === selectedKeyId);
 
@@ -35,9 +36,14 @@ export const SignMessage = () => {
         enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const onSign = async () => {
-        if (!message || !selectedKey) {
-            enqueueSnackbar("Please enter a message and select an account", { variant: "error" });
+    const onSignMessage = async () => {
+        if (!message) {
+            enqueueSnackbar("Please enter a message to sign", { variant: "error" });
+            return;
+        }
+
+        if (!selectedKey) {
+            enqueueSnackbar("Please select a key to sign with", { variant: "error" });
             return;
         }
 
@@ -47,12 +53,16 @@ export const SignMessage = () => {
             variant: "info"
         });
         try {
-            const signedMessage = aleoWASM.signMessage(message, selectedKey.privateKey);
-            setSignature(signedMessage);
-            enqueueSnackbar.close(loadingKey);
+            const url = `/api/sign`;
+            const response = await axios.post(url, {
+                message,
+                privateKey: selectedKey.privateKey
+            });
+            setSignature(response.data.signature);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Message signed successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error signing message: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);
@@ -125,7 +135,7 @@ export const SignMessage = () => {
                         )}
                         <Button
                             variant="contained"
-                            onClick={onSign}
+                            onClick={onSignMessage}
                             disabled={loading || !selectedKey}
                             size="large"
                         >

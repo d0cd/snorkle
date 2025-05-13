@@ -19,8 +19,8 @@ export const GetProgram = () => {
     const [loading, setLoading] = useState(false);
     const [programId, setProgramId] = useState("");
     const [program, setProgram] = useState("");
-    const { endpointUrl, networkString } = useNetwork();
-    const { enqueueSnackbar } = useSnackbar();
+    const { networkString } = useNetwork();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
@@ -39,13 +39,13 @@ export const GetProgram = () => {
             variant: "info"
         });
         try {
-            const url = `${endpointUrl}/${networkString}/program/${programId}`;
+            const url = `/api/${networkString}/program/${programId}`;
             const response = await axios.get(url);
             setProgram(JSON.stringify(response.data, null, 2));
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Program retrieved successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error getting program: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);

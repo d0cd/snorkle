@@ -19,7 +19,7 @@ import { Search as SearchIcon } from "@mui/icons-material";
 export const LoadProgram = ({ onResponse }) => {
     const [programId, setProgramId] = useState("");
     const [loading, setLoading] = useState(false);
-    const { enqueueSnackbar } = useSnackbar();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
     const { endpointUrl, networkString } = useNetwork();
 
     const onProgramSearch = async () => {
@@ -35,6 +35,11 @@ export const LoadProgram = ({ onResponse }) => {
         }
 
         setLoading(true);
+        const loadingKey = enqueueSnackbar("Loading program...", { 
+            persist: true,
+            variant: "info"
+        });
+
         const url = `${endpointUrl}/${networkString}/program/${searchId}`;
         console.log('Fetching program from URL:', url);
 
@@ -48,9 +53,11 @@ export const LoadProgram = ({ onResponse }) => {
             const data = await response.text();
             console.log('Response data:', data);
             onResponse(data);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Program loaded successfully!", { variant: "success" });
         } catch (error) {
             console.error('Error loading program:', error);
+            closeSnackbar(loadingKey);
             enqueueSnackbar(error.message, { variant: "error" });
             onResponse("");
         } finally {

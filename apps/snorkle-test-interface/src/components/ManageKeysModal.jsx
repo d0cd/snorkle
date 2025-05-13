@@ -1,6 +1,7 @@
 import { useKeyVault } from "../contexts/KeyVaultContext";
 import { useState } from "react";
 import { useAleoWASM } from "../aleo-wasm-hook";
+import { useSnackbar } from "notistack";
 import {
     Dialog,
     DialogTitle,
@@ -18,8 +19,6 @@ import {
     Paper,
     Tooltip,
     DialogActions,
-    Snackbar,
-    Alert,
     Divider,
     InputAdornment
 } from "@mui/material";
@@ -49,7 +48,7 @@ export function ManageKeysModal({ open, onClose }) {
     const [revealedFields, setRevealedFields] = useState({});
     const [nameError, setNameError] = useState("");
     const [expandedAccounts, setExpandedAccounts] = useState({});
-    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleEdit = (id, name) => {
         setEditingId(id);
@@ -60,24 +59,30 @@ export function ManageKeysModal({ open, onClose }) {
         editKey(id, { name: editName });
         setEditingId(null);
         setEditName("");
+        enqueueSnackbar("Key name updated successfully!", { variant: "success" });
     };
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
-        setSnackbar({ open: true, message: "Copied to clipboard", severity: "success" });
+        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
     const handleGenerateRandomKey = async () => {
         if (aleoLoading) {
-            setSnackbar({ open: true, message: "Aleo SDK is still loading. Please wait a moment.", severity: "error" });
+            enqueueSnackbar("Aleo SDK is still loading. Please wait a moment.", { variant: "error" });
             return;
         }
         if (!aleo) {
-            setSnackbar({ open: true, message: "Aleo SDK failed to load. Please refresh the page.", severity: "error" });
+            enqueueSnackbar("Aleo SDK failed to load. Please refresh the page.", { variant: "error" });
             return;
         }
 
         setGeneratingKey(true);
+        const loadingKey = enqueueSnackbar("Generating new key...", { 
+            persist: true,
+            variant: "info"
+        });
+
         try {
             const privateKey = new aleo.PrivateKey();
             const key = {
@@ -90,9 +95,12 @@ export function ManageKeysModal({ open, onClose }) {
             if (!newKeyName.trim()) {
                 setNewKeyName(`Account ${key.address.slice(0, 6)}`);
             }
+            closeSnackbar(loadingKey);
+            enqueueSnackbar("Key generated successfully!", { variant: "success" });
         } catch (error) {
             console.error("Error generating key:", error);
-            setSnackbar({ open: true, message: "Failed to generate key. Please try again.", severity: "error" });
+            closeSnackbar(loadingKey);
+            enqueueSnackbar("Failed to generate key. Please try again.", { variant: "error" });
         } finally {
             setGeneratingKey(false);
         }
@@ -139,7 +147,7 @@ export function ManageKeysModal({ open, onClose }) {
             return;
         }
         if (!generatedKey) {
-            setSnackbar({ open: true, message: "Please enter a valid private key or generate one", severity: "error" });
+            enqueueSnackbar("Please enter a valid private key or generate one", { variant: "error" });
             return;
         }
         setNameError("");
@@ -151,7 +159,7 @@ export function ManageKeysModal({ open, onClose }) {
         setGeneratedKey(null);
         setNewKeyName("");
         setNewPrivateKey("");
-        setSnackbar({ open: true, message: "Key saved successfully!", severity: "success" });
+        enqueueSnackbar("Key saved successfully!", { variant: "success" });
     };
 
     const handleExport = () => {
@@ -163,6 +171,7 @@ export function ManageKeysModal({ open, onClose }) {
         a.download = "snorkle-keys.json";
         a.click();
         URL.revokeObjectURL(url);
+        enqueueSnackbar("Keys exported successfully!", { variant: "success" });
     };
 
     const handleImport = (e) => {
@@ -181,12 +190,12 @@ export function ManageKeysModal({ open, onClose }) {
                             address: k.address
                         });
                     });
-                    setSnackbar({ open: true, message: "Keys imported successfully!", severity: "success" });
+                    enqueueSnackbar("Keys imported successfully!", { variant: "success" });
                 } else {
-                    setSnackbar({ open: true, message: "Invalid key format", severity: "error" });
+                    enqueueSnackbar("Invalid key format", { variant: "error" });
                 }
             } catch (e) {
-                setSnackbar({ open: true, message: "Invalid JSON file", severity: "error" });
+                enqueueSnackbar("Invalid JSON file", { variant: "error" });
             }
         };
         reader.readAsText(file);
@@ -467,20 +476,6 @@ export function ManageKeysModal({ open, onClose }) {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
-            >
-                <Alert
-                    onClose={() => setSnackbar({ ...snackbar, open: false })}
-                    severity={snackbar.severity}
-                    sx={{ width: '100%' }}
-                >
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
         </>
     );
 } 

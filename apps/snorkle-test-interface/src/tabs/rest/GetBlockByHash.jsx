@@ -17,18 +17,18 @@ import axios from "axios";
 
 export const GetBlockByHash = () => {
     const [loading, setLoading] = useState(false);
-    const [hash, setHash] = useState("");
+    const [blockHash, setBlockHash] = useState("");
     const [block, setBlock] = useState("");
-    const { endpointUrl, networkString } = useNetwork();
-    const { enqueueSnackbar } = useSnackbar();
+    const { networkString } = useNetwork();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
         enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const onGetBlock = async () => {
-        if (!hash) {
+    const onGetBlockByHash = async () => {
+        if (!blockHash) {
             enqueueSnackbar("Please enter a block hash", { variant: "error" });
             return;
         }
@@ -39,13 +39,13 @@ export const GetBlockByHash = () => {
             variant: "info"
         });
         try {
-            const url = `${endpointUrl}/${networkString}/block/${hash}`;
+            const url = `/api/${networkString}/block/hash/${blockHash}`;
             const response = await axios.get(url);
             setBlock(JSON.stringify(response.data, null, 2));
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Block retrieved successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error getting block: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);
@@ -61,13 +61,13 @@ export const GetBlockByHash = () => {
                         <TextField
                             fullWidth
                             label="Block Hash"
-                            value={hash}
-                            onChange={(e) => setHash(e.target.value)}
+                            value={blockHash}
+                            onChange={(e) => setBlockHash(e.target.value)}
                             placeholder="Enter block hash"
                         />
                         <Button
                             variant="contained"
-                            onClick={onGetBlock}
+                            onClick={onGetBlockByHash}
                             disabled={loading}
                             size="large"
                         >
