@@ -19,7 +19,9 @@ import {
     Tooltip,
     DialogActions,
     Snackbar,
-    Alert
+    Alert,
+    Divider,
+    InputAdornment
 } from "@mui/material";
 import {
     Add as AddIcon,
@@ -30,7 +32,8 @@ import {
     ContentCopy as CopyIcon,
     ExpandMore as ExpandMoreIcon,
     ExpandLess as ExpandLessIcon,
-    Save as SaveIcon
+    Save as SaveIcon,
+    Casino as CasinoIcon
 } from "@mui/icons-material";
 
 export function ManageKeysModal({ open, onClose }) {
@@ -40,6 +43,7 @@ export function ManageKeysModal({ open, onClose }) {
     const [aleo, aleoLoading] = useAleoWASM();
     const [newKeyModalOpen, setNewKeyModalOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState("");
+    const [newPrivateKey, setNewPrivateKey] = useState("");
     const [generatedKey, setGeneratedKey] = useState(null);
     const [generatingKey, setGeneratingKey] = useState(false);
     const [revealedFields, setRevealedFields] = useState({});
@@ -81,14 +85,36 @@ export function ManageKeysModal({ open, onClose }) {
                 viewKey: privateKey.to_view_key().to_string(),
                 address: privateKey.to_address().to_string(),
             };
+            setNewPrivateKey(key.privateKey);
             setGeneratedKey(key);
-            setNewKeyName(`Account ${key.address.slice(0, 6)}`);
-            setNewKeyModalOpen(true);
+            if (!newKeyName.trim()) {
+                setNewKeyName(`Account ${key.address.slice(0, 6)}`);
+            }
         } catch (error) {
             console.error("Error generating key:", error);
             setSnackbar({ open: true, message: "Failed to generate key. Please try again.", severity: "error" });
         } finally {
             setGeneratingKey(false);
+        }
+    };
+
+    const handlePrivateKeyChange = async (value) => {
+        setNewPrivateKey(value);
+        if (value && !aleoLoading && aleo) {
+            try {
+                const privateKey = new aleo.PrivateKey(value);
+                const key = {
+                    privateKey: privateKey.to_string(),
+                    viewKey: privateKey.to_view_key().to_string(),
+                    address: privateKey.to_address().to_string(),
+                };
+                setGeneratedKey(key);
+                setNewKeyName(`Account ${key.address.slice(0, 6)}`);
+            } catch (error) {
+                setGeneratedKey(null);
+            }
+        } else {
+            setGeneratedKey(null);
         }
     };
 
@@ -112,17 +138,20 @@ export function ManageKeysModal({ open, onClose }) {
             setNameError("Account name already exists.");
             return;
         }
-        setNameError("");
-        if (generatedKey) {
-            addKey({
-                name: newKeyName,
-                ...generatedKey
-            });
-            setNewKeyModalOpen(false);
-            setGeneratedKey(null);
-            setNewKeyName("");
-            setSnackbar({ open: true, message: "Key saved successfully!", severity: "success" });
+        if (!generatedKey) {
+            setSnackbar({ open: true, message: "Please enter a valid private key or generate one", severity: "error" });
+            return;
         }
+        setNameError("");
+        addKey({
+            name: newKeyName,
+            ...generatedKey
+        });
+        setNewKeyModalOpen(false);
+        setGeneratedKey(null);
+        setNewKeyName("");
+        setNewPrivateKey("");
+        setSnackbar({ open: true, message: "Key saved successfully!", severity: "success" });
     };
 
     const handleExport = () => {
@@ -144,7 +173,17 @@ export function ManageKeysModal({ open, onClose }) {
             try {
                 const imported = JSON.parse(evt.target.result);
                 if (Array.isArray(imported)) {
-                    imported.forEach(k => editKey(k.id, k));
+                    imported.forEach(k => {
+                        addKey({
+                            name: k.name,
+                            privateKey: k.privateKey,
+                            viewKey: k.viewKey,
+                            address: k.address
+                        });
+                    });
+                    setSnackbar({ open: true, message: "Keys imported successfully!", severity: "success" });
+                } else {
+                    setSnackbar({ open: true, message: "Invalid key format", severity: "error" });
                 }
             } catch (e) {
                 setSnackbar({ open: true, message: "Invalid JSON file", severity: "error" });
@@ -169,10 +208,9 @@ export function ManageKeysModal({ open, onClose }) {
                         <Button
                             variant="contained"
                             startIcon={<AddIcon />}
-                            onClick={handleGenerateRandomKey}
-                            disabled={aleoLoading || generatingKey}
+                            onClick={() => setNewKeyModalOpen(true)}
                         >
-                            Generate Random Key
+                            Add Key
                         </Button>
                         <Button
                             variant="outlined"
@@ -327,23 +365,106 @@ export function ManageKeysModal({ open, onClose }) {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={newKeyModalOpen} onClose={() => setNewKeyModalOpen(false)}>
-                <DialogTitle>Save New Key</DialogTitle>
+            <Dialog open={newKeyModalOpen} onClose={() => setNewKeyModalOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>Add New Key</DialogTitle>
                 <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Account Name"
-                        fullWidth
-                        value={newKeyName}
-                        onChange={(e) => setNewKeyName(e.target.value)}
-                        error={!!nameError}
-                        helperText={nameError}
-                    />
+                    <Stack spacing={2} sx={{ mt: 1, minWidth: '600px' }}>
+                        <TextField
+                            autoFocus
+                            label="Account Name"
+                            fullWidth
+                            value={newKeyName}
+                            onChange={(e) => setNewKeyName(e.target.value)}
+                            error={!!nameError}
+                            helperText={nameError}
+                        />
+                        <TextField
+                            label="Private Key"
+                            fullWidth
+                            value={newPrivateKey}
+                            onChange={(e) => handlePrivateKeyChange(e.target.value)}
+                            placeholder="Enter private key or generate one"
+                            error={newPrivateKey !== "" && !generatedKey}
+                            helperText={newPrivateKey !== "" && !generatedKey ? "Invalid private key" : ""}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Tooltip title="Generate random key">
+                                            <span>
+                                                <IconButton
+                                                    onClick={handleGenerateRandomKey}
+                                                    disabled={aleoLoading || generatingKey}
+                                                    edge="end"
+                                                >
+                                                    <CasinoIcon />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                        {generatedKey && (
+                            <>
+                                <Divider />
+                                <Typography variant="subtitle2" color="text.secondary">
+                                    Generated Account Details
+                                </Typography>
+                                <TextField
+                                    label="View Key"
+                                    fullWidth
+                                    value={generatedKey.viewKey}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(generatedKey.viewKey)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{
+                                        '& .MuiInputBase-input': {
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.875rem'
+                                        }
+                                    }}
+                                />
+                                <TextField
+                                    label="Address"
+                                    fullWidth
+                                    value={generatedKey.address}
+                                    InputProps={{
+                                        readOnly: true,
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton onClick={() => handleCopy(generatedKey.address)}>
+                                                    <CopyIcon />
+                                                </IconButton>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{
+                                        '& .MuiInputBase-input': {
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.875rem'
+                                        }
+                                    }}
+                                />
+                            </>
+                        )}
+                    </Stack>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setNewKeyModalOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveNewKey} variant="contained">Save</Button>
+                    <Button 
+                        onClick={handleSaveNewKey} 
+                        variant="contained"
+                        disabled={!generatedKey || !newKeyName.trim()}
+                    >
+                        Save
+                    </Button>
                 </DialogActions>
             </Dialog>
 

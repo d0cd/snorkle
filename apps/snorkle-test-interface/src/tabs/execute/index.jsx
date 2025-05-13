@@ -1,104 +1,322 @@
-import { useState } from "react";
-import { useAleoWASM } from "../../aleo-wasm-hook";
-import { useKeyVault } from "../../contexts/KeyVaultContext";
-import { useSnackbar } from "notistack";
 import {
+    Alert,
     Box,
     Button,
     Card,
     CardContent,
+    Divider,
+    FormControl,
+    FormHelperText,
+    Grid,
+    IconButton,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
+    Skeleton,
+    Stack,
+    Switch,
     TextField,
     Typography,
-    CircularProgress,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    InputAdornment,
-    IconButton
+    useTheme,
+    InputAdornment
 } from "@mui/material";
-import { ContentCopy as CopyIcon } from "@mui/icons-material";
-import { CodeEditor } from "./CodeEditor";
+import { ContentCopy as ContentCopyIcon } from "@mui/icons-material";
+import { LoadProgram } from "./LoadProgram.jsx";
+import { CodeEditor } from "./CodeEditor.jsx";
+import { useAleoWASM } from "../../aleo-wasm-hook";
+import { useKeyVault } from "../../contexts/KeyVaultContext";
+import { ManageKeysModal } from "../../components/ManageKeysModal";
+import { useEffect, useState } from "react";
 
 export const Execute = () => {
+    const [formValues, setFormValues] = useState({});
     const [aleoWASM] = useAleoWASM();
-    const [program, setProgram] = useState("");
-    const [functionName, setFunctionName] = useState("");
-    const [inputs, setInputs] = useState("");
-    const [selectedKeyId, setSelectedKeyId] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [executionResult, setExecutionResult] = useState("");
     const { keys } = useKeyVault();
-    const { enqueueSnackbar } = useSnackbar();
+    const theme = useTheme();
+    const [manageKeysOpen, setManageKeysOpen] = useState(false);
 
-    const selectedKey = keys.find(k => k.id === selectedKeyId);
+    const demoSelect = async (value) => {
+        if (value === "hello") {
+            await onLoadProgram(
+                "program hello_hello.aleo;\n" +
+                    "\n" +
+                    "function hello:\n" +
+                    "    input r0 as u32.public;\n" +
+                    "    input r1 as u32.private;\n" +
+                    "    add r0 r1 into r2;\n" +
+                    "    output r2 as u32.private;\n"
+            );
+            setFormValues(prev => ({
+                ...prev,
+                manual_input: true,
+                functionName: "hello",
+                inputs: JSON.stringify(["5u32", "5u32"])
+            }));
+        }
+    };
+
+    const [worker, setWorker] = useState(null);
+
+    useEffect(() => {
+        if (worker === null) {
+            const spawnedWorker = spawnWorker();
+            setWorker(spawnedWorker);
+            return () => {
+                spawnedWorker.terminate();
+            };
+        }
+    }, []);
+
+    const execute = async (values) => {
+        setModalModalOpen(true);
+        setLoading(true);
+        try {
+            const {
+                program,
+                functionName,
+                inputs,
+                private_key,
+                priorityFee,
+                private_fee,
+                fee_record,
+                peer_url,
+                execute_onchain,
+            } = values;
+
+            if (execute_onchain) {
+                await postMessagePromise(worker, {
+                    type: "ALEO_EXECUTE_PROGRAM_ON_CHAIN",
+                    remoteProgram: program,
+                    aleoFunction: functionName,
+                    inputs: JSON.parse(inputs),
+                    privateKey: private_key,
+                    fee: priorityFee,
+                    privateFee: private_fee,
+                    feeRecord: fee_record,
+                    url: peer_url,
+                });
+            } else {
+                await postMessagePromise(worker, {
+                    type: "ALEO_EXECUTE_PROGRAM_LOCAL",
+                    localProgram: program,
+                    aleoFunction: functionName,
+                    inputs: JSON.parse(inputs),
+                    privateKey: private_key,
+                });
+            }
+        } catch (error) {
+            setLoading(false);
+            setModalResult({
+                status: "error",
+                title: "Function Execution Error",
+                subTitle: `Error: ${error || "Something went wrong..."}`,
+            });
+        }
+    };
+
+    function postMessagePromise(worker, message) {
+        return new Promise((resolve, reject) => {
+            worker.onmessage = (event) => {
+                resolve(event.data);
+            };
+            worker.onerror = (error) => {
+                reject(error);
+            };
+            worker.postMessage(message);
+        });
+    }
+
+    function spawnWorker() {
+        let worker = new Worker(
+            new URL("../../../workers/worker.js", import.meta.url),
+            { type: "module" }
+        );
+        worker.addEventListener("message", (ev) => {
+            if (ev.data.type == "OFFLINE_EXECUTION_COMPLETED") {
+                setLoading(false);
+                setModalResult({
+                    title: "Execution Successsful!",
+                    status: "success",
+                    subTitle: `Outputs: ${ev.data.outputs.outputs}`,
+                });
+            } else if (ev.data.type == "EXECUTION_TRANSACTION_COMPLETED") {
+                const transactionId = ev.data.executeTransaction;
+                setLoading(false);
+                setModalResult({
+                    title: "On-Chain Execution Successsful!",
+                    status: "success",
+                    subTitle: `Transaction ID: ${transactionId}`,
+                });
+            } else if (ev.data.type == "ERROR") {
+                setLoading(false);
+                setModalResult({
+                    status: "error",
+                    title: "Function Execution Error",
+                    subTitle: `Error: ${
+                        ev.data.errorMessage || "Something went wrong..."
+                    }`,
+                });
+            }
+        });
+        return worker;
+    }
+
+    const [functions, setFunctions] = useState([]);
+    const [functionInputs, setFunctionInputs] = useState({});
+
+    const onLoadProgram = async (value) => {
+        if (value) {
+            setFormValues(prev => ({
+                ...prev,
+                program: value
+            }));
+            await onProgramChange(value);
+        }
+    };
+
+    const onProgramEdit = async (value) => {
+        await onProgramChange(value);
+    };
+
+    const onProgramChange = async (value) => {
+        let processedProgram;
+        try {
+            console.log('Raw program value:', value);
+            // Clean the program string
+            const cleanProgram = value
+                ? (value.startsWith('"') && value.endsWith('"') 
+                    ? value.slice(1, -1) 
+                    : value)
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\r/g, '\r')
+                : '';
+            console.log('Cleaned program:', cleanProgram);
+            
+            processedProgram = await aleoWASM.Program.fromString(cleanProgram);
+            console.log('Processed program:', processedProgram);
+            
+            const functionNames = processedProgram.getFunctions();
+            console.log('Found functions:', functionNames);
+            
+            // Store function inputs separately
+            const inputs = {};
+            functionNames.forEach(func => {
+                inputs[func] = processedProgram.getFunctionInputs(func);
+            });
+            setFunctionInputs(inputs);
+            
+            const functionItems = functionNames.map(func => ({
+                key: func,
+                label: func
+            }));
+            setFunctions(functionItems);
+        } catch (e) {
+            console.error('Error processing program:', e);
+            setFunctions([]);
+            setFunctionInputs({});
+            return;
+        }
+    };
+
+    const [modalOpen, setModalModalOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [modalResult, setModalResult] = useState({
+        status: "warning",
+        subTitle: "Sorry, something went wrong.",
+    });
+    const handleOk = () => {
+        setModalModalOpen(false);
+    };
+
+    const generateKey = () => {
+        setFormValues(prev => ({
+            ...prev,
+            private_key: new aleoWASM.PrivateKey().to_string()
+        }));
+    };
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
-        enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
-    const onExecute = async () => {
-        if (!program || !functionName || !selectedKey) {
-            enqueueSnackbar("Please fill in all required fields and select an account", { variant: "error" });
-            return;
-        }
+    const renderInput = (input, inputIndex, nameArray = []) => {
+        const inputName = nameArray.join("_");
+        const inputType = input.type;
+        const inputVisibility = input.visibility;
 
-        setLoading(true);
-        const loadingKey = enqueueSnackbar("Executing program...", { 
-            persist: true,
-            variant: "info"
-        });
-        try {
-            const result = await aleoWASM.executeProgram(
-                program,
-                functionName,
-                inputs.split(",").map(input => input.trim()),
-                selectedKey.privateKey
+        return (
+            <Grid item xs={12} key={inputIndex}>
+                <TextField
+                    fullWidth
+                    label={`Input ${inputIndex + 1} (${inputType}.${inputVisibility})`}
+                    value={formValues[inputName] || ""}
+                    onChange={(e) => setFormValues(prev => ({
+                        ...prev,
+                        [inputName]: e.target.value
+                    }))}
+                    placeholder={`Enter ${inputType} value`}
+                />
+            </Grid>
+        );
+    };
+
+    const executeForm = () => {
+        const selectedFunction = formValues.functionName;
+        const inputs = functionInputs[selectedFunction] || [];
+
+        if (keys.length === 0) {
+            return (
+                <Box sx={{ p: 2 }}>
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        No accounts found. Please add an account to execute the program.
+                    </Alert>
+                    <Button
+                        variant="contained"
+                        onClick={() => setManageKeysOpen(true)}
+                    >
+                        Add Account
+                    </Button>
+                </Box>
             );
-            setExecutionResult(result);
-            enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar("Program executed successfully!", { variant: "success" });
-        } catch (error) {
-            enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar("Error executing program: " + error.message, { variant: "error" });
-        } finally {
-            setLoading(false);
         }
-    };
 
-    return (
-        <Box sx={{ maxWidth: 1200, mx: 'auto', mt: 4 }}>
-            <Card>
-                <CardContent>
-                    <Typography variant="h5" gutterBottom>Execute Program</Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <CodeEditor
-                            value={program}
-                            onChange={setProgram}
-                            height={400}
-                            placeholder="Enter your Aleo program here..."
-                        />
-                        <TextField
-                            fullWidth
-                            label="Function Name"
-                            value={functionName}
-                            onChange={(e) => setFunctionName(e.target.value)}
-                            placeholder="Enter the function name to execute"
-                        />
-                        <TextField
-                            fullWidth
-                            label="Inputs (comma-separated)"
-                            value={inputs}
-                            onChange={(e) => setInputs(e.target.value)}
-                            placeholder="Enter inputs separated by commas"
-                        />
+        return (
+            <Box sx={{ p: 2 }}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                        <FormControl fullWidth>
+                            <InputLabel>Function</InputLabel>
+                            <Select
+                                value={selectedFunction || ''}
+                                label="Function"
+                                onChange={(e) => setFormValues(prev => ({
+                                    ...prev,
+                                    functionName: e.target.value
+                                }))}
+                            >
+                                {functions.map((f) => (
+                                    <MenuItem key={f.key} value={f.key}>
+                                        {f.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
                         <FormControl fullWidth>
                             <InputLabel>Select Account</InputLabel>
                             <Select
-                                value={selectedKeyId}
-                                onChange={(e) => setSelectedKeyId(e.target.value)}
+                                value={formValues.selectedKeyId || ''}
                                 label="Select Account"
+                                onChange={(e) => {
+                                    const selectedKey = keys.find(k => k.id === e.target.value);
+                                    setFormValues(prev => ({
+                                        ...prev,
+                                        selectedKeyId: e.target.value,
+                                        private_key: selectedKey?.privateKey || ''
+                                    }));
+                                }}
                             >
                                 {keys.map((key) => (
                                     <MenuItem key={key.id} value={key.id}>
@@ -107,71 +325,72 @@ export const Execute = () => {
                                 ))}
                             </Select>
                         </FormControl>
-                        {selectedKey && (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                                <Typography variant="subtitle2" color="text.secondary">Selected Account Details</Typography>
-                                <TextField
-                                    fullWidth
-                                    label="Address"
-                                    value={selectedKey.address}
-                                    InputProps={{
-                                        readOnly: true,
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton onClick={() => handleCopy(selectedKey.address)}>
-                                                    <CopyIcon />
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="Private Key"
-                                    value={selectedKey.privateKey}
-                                    InputProps={{
-                                        readOnly: true,
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton onClick={() => handleCopy(selectedKey.privateKey)}>
-                                                    <CopyIcon />
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                />
-                            </Box>
-                        )}
+                    </Grid>
+                    {inputs.map((input, index) =>
+                        renderInput(input, index, [selectedFunction, "input", index])
+                    )}
+                    <Grid item xs={12}>
                         <Button
                             variant="contained"
-                            onClick={onExecute}
-                            disabled={loading || !selectedKey}
-                            size="large"
+                            onClick={() => execute({
+                                ...formValues,
+                                inputs: JSON.stringify(
+                                    inputs.map((input, index) =>
+                                        formValues[`${selectedFunction}_input_${index}`]
+                                    )
+                                )
+                            })}
+                            disabled={loading || !formValues.private_key || !selectedFunction}
                         >
-                            {loading ? <CircularProgress size={24} /> : "Execute Program"}
+                            Execute
                         </Button>
-                        {executionResult && (
-                            <TextField
-                                fullWidth
-                                label="Execution Result"
-                                value={executionResult}
-                                multiline
-                                rows={4}
-                                InputProps={{
-                                    readOnly: true,
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <IconButton onClick={() => handleCopy(executionResult)}>
-                                                <CopyIcon />
-                                            </IconButton>
-                                        </InputAdornment>
-                                    ),
-                                }}
+                    </Grid>
+                </Grid>
+            </Box>
+        );
+    };
+
+    return (
+        <Box sx={{ p: 2 }}>
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                    <LoadProgram onResponse={onLoadProgram} />
+                </Grid>
+                <Grid item xs={12}>
+                    <Card>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Program
+                            </Typography>
+                            <CodeEditor
+                                value={formValues.program || ""}
+                                onChange={onProgramEdit}
                             />
-                        )}
-                    </Box>
-                </CardContent>
-            </Card>
+                        </CardContent>
+                    </Card>
+                </Grid>
+                {functions.length > 0 ? (
+                    <Grid item xs={12}>
+                        <Card>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    Execute Function
+                                </Typography>
+                                {executeForm()}
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                ) : (
+                    <Grid item xs={12}>
+                        <Paper sx={{ p: 2, textAlign: 'center' }}>
+                            <Typography variant="body1" color="text.secondary">
+                                No functions found in the program
+                            </Typography>
+                        </Paper>
+                    </Grid>
+                )}
+            </Grid>
+            <ManageKeysModal open={manageKeysOpen} onClose={() => setManageKeysOpen(false)} />
         </Box>
     );
 };

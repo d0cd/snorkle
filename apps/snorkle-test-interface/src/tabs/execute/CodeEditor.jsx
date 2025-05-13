@@ -5,6 +5,10 @@ import { simpleMode } from "@codemirror/legacy-modes/mode/simple-mode";
 import { StreamLanguage } from "@codemirror/language";
 import { useState } from "react";
 import { useTheme } from "@mui/material";
+import { EditorView } from "@codemirror/view";
+import { lineNumbers } from "@codemirror/view";
+import { defaultKeymap } from "@codemirror/commands";
+import { syntaxHighlighting } from "@codemirror/language";
 
 const aleoSyntaxHighlight = {
     start: [
@@ -47,6 +51,15 @@ export function CodeEditor({ value, onChange }) {
     const [isFocused, setIsFocused] = useState(false);
     const theme = useTheme();
 
+    // Clean the value by removing leading/trailing quotes and converting \n to newlines
+    const cleanValue = value
+        ? (value.startsWith('"') && value.endsWith('"') 
+            ? value.slice(1, -1) 
+            : value)
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+        : '';
+
     return (
         <section
             style={{
@@ -66,14 +79,24 @@ export function CodeEditor({ value, onChange }) {
                     overflow: "auto",
                     borderRadius: theme.shape.borderRadius,
                 }}
-                value={value}
+                value={cleanValue}
                 extensions={[
+                    lineNumbers(),
+                    EditorView.lineWrapping,
+                    EditorView.theme({
+                        "&": {
+                            fontSize: "14px",
+                            fontFamily: "monospace",
+                        },
+                        ".cm-line": {
+                            padding: "0 4px",
+                        },
+                    }),
                     StreamLanguage.define(simpleMode(aleoSyntaxHighlight)),
                 ]}
                 theme={theme.palette.mode === "dark" ? okaidia : noctisLilac}
                 onChange={onChange}
                 height="300px"
-                option={{ indentUnit: 4 }}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
             />

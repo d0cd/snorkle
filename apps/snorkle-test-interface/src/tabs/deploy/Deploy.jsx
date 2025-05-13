@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAleoWASM } from "../../aleo-wasm-hook";
 import { useNetwork } from "../../contexts/NetworkContext";
 import { useKeyVault } from "../../contexts/KeyVaultContext";
@@ -36,10 +36,6 @@ export const Deploy = () => {
 
     const selectedKey = keys.find(k => k.id === selectedKeyId);
 
-    const onProgramNameChange = (event) => {
-        setProgramName(event.target.value);
-    };
-
     const onProgramStringChange = (value) => {
         setProgramString(value);
     };
@@ -53,9 +49,29 @@ export const Deploy = () => {
         enqueueSnackbar("Copied to clipboard", { variant: "success" });
     };
 
+    // Extract program name from source code
+    useEffect(() => {
+        if (programString) {
+            try {
+                // Look for program declaration in the format: program program_name.aleo
+                const programMatch = programString.match(/program\s+([a-zA-Z0-9_]+)\.aleo/);
+                if (programMatch && programMatch[1]) {
+                    setProgramName(programMatch[1]);
+                } else {
+                    setProgramName("");
+                }
+            } catch (error) {
+                console.error("Error extracting program name:", error);
+                setProgramName("");
+            }
+        } else {
+            setProgramName("");
+        }
+    }, [programString]);
+
     const onDeploy = async () => {
         if (!programName || !programString || !selectedKey) {
-            enqueueSnackbar("Please enter a program name, program string, and select a key", { variant: "error" });
+            enqueueSnackbar("Please enter a valid program and select an account", { variant: "error" });
             return;
         }
 
@@ -82,15 +98,18 @@ export const Deploy = () => {
         <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
             <Card>
                 <CardContent>
-                    <Typography variant="h5" gutterBottom>Deploy Program</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                        <Typography variant="h5">Deploy Program</Typography>
+                        {programName && (
+                            <Typography variant="subtitle1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                Program: {programName}
+                                <IconButton size="small" onClick={() => handleCopy(programName)}>
+                                    <CopyIcon fontSize="small" />
+                                </IconButton>
+                            </Typography>
+                        )}
+                    </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <TextField
-                            fullWidth
-                            label="Program Name"
-                            value={programName}
-                            onChange={onProgramNameChange}
-                            placeholder="Enter program name (e.g., hello.aleo)"
-                        />
                         <Box sx={{ 
                             maxHeight: 400, 
                             overflow: "auto", 
@@ -103,6 +122,7 @@ export const Deploy = () => {
                                 value={programString}
                                 onChange={onProgramStringChange}
                                 language="leo"
+                                placeholder="Enter your Aleo program here... (e.g., program my_program.aleo)"
                             />
                         </Box>
                         <FormControl fullWidth>
@@ -173,7 +193,7 @@ export const Deploy = () => {
                         <Button
                             variant="contained"
                             onClick={onDeploy}
-                            disabled={loading || !selectedKey}
+                            disabled={loading || !selectedKey || !programName}
                             size="large"
                         >
                             {loading ? <CircularProgress size={24} /> : "Deploy Program"}

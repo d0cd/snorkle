@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useAleoWASM } from "../../aleo-wasm-hook";
 import { useSnackbar } from "notistack";
+import { useNetwork } from "../../contexts/NetworkContext";
 import {
     Box,
     Button,
@@ -8,43 +8,49 @@ import {
     CardContent,
     TextField,
     Typography,
-    CircularProgress
+    CircularProgress,
+    InputAdornment,
+    Stack
 } from "@mui/material";
-import { CodeEditor } from "./CodeEditor";
+import { Search as SearchIcon } from "@mui/icons-material";
 
-export const LoadProgram = () => {
-    const [aleoWASM] = useAleoWASM();
-    const [programName, setProgramName] = useState("");
-    const [programString, setProgramString] = useState("");
+export const LoadProgram = ({ onResponse }) => {
+    const [programId, setProgramId] = useState("");
     const [loading, setLoading] = useState(false);
     const { enqueueSnackbar } = useSnackbar();
+    const { endpointUrl, networkString } = useNetwork();
 
-    const onProgramNameChange = (event) => {
-        setProgramName(event.target.value);
-    };
-
-    const onProgramStringChange = (value) => {
-        setProgramString(value);
-    };
-
-    const onLoadProgram = () => {
-        if (!programName || !programString) {
-            enqueueSnackbar("Please enter a program name and program string", { variant: "error" });
+    const onProgramSearch = async () => {
+        if (!programId || programId.trim() === "") {
+            enqueueSnackbar("Please enter a program ID", { variant: "error" });
             return;
         }
 
+        let searchId = programId;
+        if (!searchId.endsWith(".aleo") && !searchId.includes(".")) {
+            searchId += ".aleo";
+            setProgramId(searchId);
+        }
+
         setLoading(true);
-        const loadingKey = enqueueSnackbar("Loading program...", { 
-            persist: true,
-            variant: "info"
-        });
+        const url = `${endpointUrl}/${networkString}/program/${searchId}`;
+        console.log('Fetching program from URL:', url);
+
         try {
-            aleoWASM.loadProgram(programName, programString);
-            enqueueSnackbar.close(loadingKey);
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.text();
+            console.log('Response data:', data);
+            onResponse(data);
             enqueueSnackbar("Program loaded successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
-            enqueueSnackbar("Error loading program: " + error.message, { variant: "error" });
+            console.error('Error loading program:', error);
+            enqueueSnackbar(error.message, { variant: "error" });
+            onResponse("");
         } finally {
             setLoading(false);
         }
@@ -54,35 +60,38 @@ export const LoadProgram = () => {
         <Card>
             <CardContent>
                 <Typography variant="h5" gutterBottom>Load Program</Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <TextField
-                        fullWidth
-                        label="Program Name"
-                        value={programName}
-                        onChange={onProgramNameChange}
-                    />
-                    <Box sx={{ 
-                        maxHeight: 240, 
-                        overflow: "auto", 
-                        mb: 2, 
-                        borderRadius: 1, 
-                        border: 1, 
-                        borderColor: 'divider' 
-                    }}>
-                        <CodeEditor
-                            value={programString}
-                            onChange={onProgramStringChange}
-                            language="leo"
+                <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                            fullWidth
+                            label="Program ID"
+                            value={programId}
+                            onChange={(e) => setProgramId(e.target.value)}
+                            placeholder="Enter program ID"
+                            disabled={loading}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                    onProgramSearch();
+                                }
+                            }}
                         />
+                        <Button
+                            variant="contained"
+                            onClick={onProgramSearch}
+                            disabled={loading}
+                            sx={{ minWidth: '120px' }}
+                        >
+                            {loading ? (
+                                <CircularProgress size={24} color="inherit" />
+                            ) : (
+                                <>
+                                    <SearchIcon sx={{ mr: 1 }} />
+                                    Search
+                                </>
+                            )}
+                        </Button>
                     </Box>
-                    <Button
-                        variant="contained"
-                        onClick={onLoadProgram}
-                        disabled={loading}
-                    >
-                        {loading ? <CircularProgress size={24} /> : "Load Program"}
-                    </Button>
-                </Box>
+                </Stack>
             </CardContent>
         </Card>
     );
