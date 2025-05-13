@@ -1,45 +1,54 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-const LOCAL_STORAGE_KEY = "snorkle_transaction_history";
-
 const TransactionHistoryContext = createContext();
 
-export const useTransactionHistory = () => useContext(TransactionHistoryContext);
+export const useTransactionHistory = () => {
+    const context = useContext(TransactionHistoryContext);
+    if (!context) {
+        throw new Error('useTransactionHistory must be used within a TransactionHistoryProvider');
+    }
+    return context;
+};
 
 export const TransactionHistoryProvider = ({ children }) => {
-    const [transactions, setTransactions] = useState(() => {
-        try {
-            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : [];
-        } catch (error) {
-            console.error("Error loading transaction history:", error);
-            return [];
-        }
-    });
+    const [transactions, setTransactions] = useState([]);
 
+    // Load transactions from localStorage on mount
     useEffect(() => {
-        try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(transactions));
-        } catch (error) {
-            console.error("Error saving transaction history:", error);
+        const storedTransactions = localStorage.getItem('transactionHistory');
+        if (storedTransactions) {
+            setTransactions(JSON.parse(storedTransactions));
         }
+    }, []);
+
+    // Save transactions to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('transactionHistory', JSON.stringify(transactions));
     }, [transactions]);
 
     const addTransaction = (transaction) => {
-        const newTransaction = {
-            ...transaction,
-            id: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-        };
-        setTransactions(prev => [newTransaction, ...prev]);
+        setTransactions(prev => {
+            // Check if transaction already exists
+            const exists = prev.some(t => t.id === transaction.id);
+            if (exists) {
+                return prev;
+            }
+            // Add new transaction at the beginning
+            return [transaction, ...prev];
+        });
+    };
+
+    const removeTransaction = (transactionId) => {
+        setTransactions(prev => prev.filter(t => t.id !== transactionId));
     };
 
     const clearHistory = () => {
         setTransactions([]);
+        localStorage.removeItem('transactionHistory');
     };
 
-    const deleteTransaction = (id) => {
-        setTransactions(prev => prev.filter(tx => tx.id !== id));
+    const getTransactionById = (transactionId) => {
+        return transactions.find(t => t.id === transactionId);
     };
 
     return (
@@ -47,8 +56,9 @@ export const TransactionHistoryProvider = ({ children }) => {
             value={{
                 transactions,
                 addTransaction,
+                removeTransaction,
                 clearHistory,
-                deleteTransaction,
+                getTransactionById
             }}
         >
             {children}

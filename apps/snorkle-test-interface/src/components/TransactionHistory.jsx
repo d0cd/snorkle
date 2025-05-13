@@ -26,7 +26,7 @@ import {
 import { useTransactionHistory } from '../contexts/TransactionHistoryContext';
 import { CopyButton } from './CopyButton';
 
-export const TransactionHistory = () => {
+export const TransactionHistory = ({ onSelectTransaction }) => {
     const { transactions, clearHistory, deleteTransaction } = useTransactionHistory();
     const [selectedTx, setSelectedTx] = useState(null);
 
@@ -36,6 +36,9 @@ export const TransactionHistory = () => {
 
     const handleViewDetails = (tx) => {
         setSelectedTx(tx);
+        if (onSelectTransaction) {
+            onSelectTransaction(tx);
+        }
     };
 
     const handleCloseDetails = () => {

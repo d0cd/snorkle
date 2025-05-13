@@ -19,8 +19,8 @@ export const GetTransaction = () => {
     const [loading, setLoading] = useState(false);
     const [transactionId, setTransactionId] = useState("");
     const [transaction, setTransaction] = useState("");
-    const { endpointUrl, networkString } = useNetwork();
-    const { enqueueSnackbar } = useSnackbar();
+    const { networkString } = useNetwork();
+    const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
     const handleCopy = (text) => {
         navigator.clipboard.writeText(text);
@@ -39,13 +39,13 @@ export const GetTransaction = () => {
             variant: "info"
         });
         try {
-            const url = `${endpointUrl}/${networkString}/transaction/${transactionId}`;
+            const url = `/api/${networkString}/transaction/${transactionId}`;
             const response = await axios.get(url);
             setTransaction(JSON.stringify(response.data, null, 2));
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Transaction retrieved successfully!", { variant: "success" });
         } catch (error) {
-            enqueueSnackbar.close(loadingKey);
+            closeSnackbar(loadingKey);
             enqueueSnackbar("Error getting transaction: " + error.message, { variant: "error" });
         } finally {
             setLoading(false);

@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import App from "./App";
 import Main from "./main.jsx";
 import { NewAccount } from "./tabs/account/NewAccount.jsx";
 import { SignMessage } from "./tabs/account/SignMessage.jsx";
@@ -14,76 +15,79 @@ import { Deploy } from "./tabs/deploy/Deploy.jsx";
 import { Execute } from "./tabs/execute/";
 import { GetMappingNames } from "./tabs/rest/GetMappingNames.jsx";
 import { GetMappingValue } from "./tabs/rest/GetMappingValue.jsx";
-import { TransactionInfo } from "./tabs/protocol/TransactionInfo.jsx";
+import { TransactionInfo } from "./components/TransactionInfo.jsx";
 import { History } from "./tabs/history";
 import NotFound from "./pages/NotFound";
 
 export const router = createBrowserRouter([
     {
         path: "/",
-        element: <Main />,
+        element: <App />,
         children: [
             {
-                index: true,
-                element: <Navigate to="/execute" replace />,
-            },
-            {
-                path: "account",
-                element: (
-                    <>
-                        <SignMessage />
-                        <br />
-                        <VerifyMessage />
-                    </>
-                ),
-            },
-            {
-                path: "record",
-                element: (
-                    <>
-                        <DecryptRecord />
-                    </>
-                ),
-            },
-            {
-                path: "rest",
-                element: (
-                    <>
-                        <GetLatestBlockHeight />
-                        <br />
-                        <GetLatestBlock />
-                        <br />
-                        <GetBlockByHeight />
-                        <br />
-                        <GetBlockByHash />
-                        <br />
-                        <GetProgram />
-                        <br />
-                        <GetMappingNames />
-                        <br />
-                        <GetMappingValue />
-                        <br />
-                        <GetTransaction />
-                    </>
-                ),
-            },
-            {
-                path: "deploy",
-                element: (
-                        <Deploy />
-                ),
-            },
-            {
-                path: "execute",
-                element: <Execute />,
-            },
-            {
-                path: "history",
-                element: <History />,
-            },
-            {
-                path: "*",
-                element: <NotFound />,
+                element: <Main />,
+                children: [
+                    {
+                        index: true,
+                        element: <Navigate to="/execute" replace />,
+                    },
+                    {
+                        path: "account",
+                        element: (
+                            <>
+                                <SignMessage />
+                                <br />
+                                <VerifyMessage />
+                            </>
+                        ),
+                    },
+                    {
+                        path: "record",
+                        element: (
+                            <>
+                                <DecryptRecord />
+                            </>
+                        ),
+                    },
+                    {
+                        path: "rest",
+                        element: (
+                            <>
+                                <GetLatestBlockHeight />
+                                <br />
+                                <GetLatestBlock />
+                                <br />
+                                <GetBlockByHeight />
+                                <br />
+                                <GetBlockByHash />
+                                <br />
+                                <GetProgram />
+                                <br />
+                                <GetMappingNames />
+                                <br />
+                                <GetMappingValue />
+                                <br />
+                                <GetTransaction />
+                            </>
+                        ),
+                    },
+                    {
+                        path: "deploy",
+                        element: <Deploy />,
+                    },
+                    {
+                        path: "execute",
+                        element: <Execute />,
+                    },
+                    {
+                        path: "history",
+                        element: <History />,
+                    },
+                    {
+                        path: "*",
+                        element: <NotFound />,
+                    },
+                ],
             },
         ],
     },

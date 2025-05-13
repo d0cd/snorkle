@@ -29,6 +29,7 @@ import { useKeyVault } from "../../contexts/KeyVaultContext";
 import { ManageKeysModal } from "../../components/ManageKeysModal";
 import { useEffect, useState } from "react";
 import { useTransactionHistory } from "../../contexts/TransactionHistoryContext";
+import { useWorker } from "../../workers/WorkerProvider";
 
 export const Execute = () => {
     const [formValues, setFormValues] = useState({});
@@ -37,6 +38,10 @@ export const Execute = () => {
     const { addTransaction } = useTransactionHistory();
     const theme = useTheme();
     const [manageKeysOpen, setManageKeysOpen] = useState(false);
+    const { executeProgram, executeProgramOnChain } = useWorker();
+    const [loading, setLoading] = useState(false);
+    const [modalResult, setModalResult] = useState(null);
+    const [modalOpen, setModalOpen] = useState(false);
 
     const demoSelect = async (value) => {
         if (value === "hello") {
@@ -58,20 +63,8 @@ export const Execute = () => {
         }
     };
 
-    const [worker, setWorker] = useState(null);
-
-    useEffect(() => {
-        if (worker === null) {
-            const spawnedWorker = spawnWorker();
-            setWorker(spawnedWorker);
-            return () => {
-                spawnedWorker.terminate();
-            };
-        }
-    }, []);
-
     const execute = async (values) => {
-        setModalModalOpen(true);
+        setModalOpen(true);
         setLoading(true);
         try {
             const {
@@ -86,9 +79,9 @@ export const Execute = () => {
                 execute_onchain,
             } = values;
 
+            let response;
             if (execute_onchain) {
-                await postMessagePromise(worker, {
-                    type: "ALEO_EXECUTE_PROGRAM_ON_CHAIN",
+                response = await executeProgramOnChain({
                     remoteProgram: program,
                     aleoFunction: functionName,
                     inputs: JSON.parse(inputs),
@@ -99,8 +92,7 @@ export const Execute = () => {
                     url: peer_url,
                 });
             } else {
-                await postMessagePromise(worker, {
-                    type: "ALEO_EXECUTE_PROGRAM_LOCAL",
+                response = await executeProgram({
                     localProgram: program,
                     aleoFunction: functionName,
                     inputs: JSON.parse(inputs),
@@ -118,65 +110,26 @@ export const Execute = () => {
                 additionalData: {
                     inputs: inputs,
                     programId: program,
-                    // Add any other relevant data
                 }
+            });
+
+            setLoading(false);
+            setModalResult({
+                title: execute_onchain ? "On-Chain Execution Successful!" : "Execution Successful!",
+                status: "success",
+                subTitle: execute_onchain ? 
+                    `Transaction ID: ${response.transactionId}` :
+                    `Outputs: ${response.outputs}`,
             });
         } catch (error) {
             setLoading(false);
             setModalResult({
                 status: "error",
                 title: "Function Execution Error",
-                subTitle: `Error: ${error || "Something went wrong..."}`,
+                subTitle: `Error: ${error.message || "Something went wrong..."}`,
             });
         }
     };
-
-    function postMessagePromise(worker, message) {
-        return new Promise((resolve, reject) => {
-            worker.onmessage = (event) => {
-                resolve(event.data);
-            };
-            worker.onerror = (error) => {
-                reject(error);
-            };
-            worker.postMessage(message);
-        });
-    }
-
-    function spawnWorker() {
-        let worker = new Worker(
-            new URL("../../../workers/worker.js", import.meta.url),
-            { type: "module" }
-        );
-        worker.addEventListener("message", (ev) => {
-            if (ev.data.type == "OFFLINE_EXECUTION_COMPLETED") {
-                setLoading(false);
-                setModalResult({
-                    title: "Execution Successsful!",
-                    status: "success",
-                    subTitle: `Outputs: ${ev.data.outputs.outputs}`,
-                });
-            } else if (ev.data.type == "EXECUTION_TRANSACTION_COMPLETED") {
-                const transactionId = ev.data.executeTransaction;
-                setLoading(false);
-                setModalResult({
-                    title: "On-Chain Execution Successsful!",
-                    status: "success",
-                    subTitle: `Transaction ID: ${transactionId}`,
-                });
-            } else if (ev.data.type == "ERROR") {
-                setLoading(false);
-                setModalResult({
-                    status: "error",
-                    title: "Function Execution Error",
-                    subTitle: `Error: ${
-                        ev.data.errorMessage || "Something went wrong..."
-                    }`,
-                });
-            }
-        });
-        return worker;
-    }
 
     const [functions, setFunctions] = useState([]);
     const [functionInputs, setFunctionInputs] = useState({});
@@ -235,14 +188,8 @@ export const Execute = () => {
         }
     };
 
-    const [modalOpen, setModalModalOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [modalResult, setModalResult] = useState({
-        status: "warning",
-        subTitle: "Sorry, something went wrong.",
-    });
     const handleOk = () => {
-        setModalModalOpen(false);
+        setModalOpen(false);
     };
 
     const generateKey = () => {

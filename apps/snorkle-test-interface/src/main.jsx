@@ -1,13 +1,11 @@
 import "./App.css";
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { NetworkProvider, useNetwork } from "./contexts/NetworkContext";
-import { KeyVaultProvider } from "./contexts/KeyVaultContext";
-import { TransactionHistoryProvider } from "./contexts/TransactionHistoryContext";
+import { useNetwork } from "./contexts/NetworkContext";
 import { ManageKeysModal } from "./components/ManageKeysModal";
 import { WasmLoadingMessage } from "./components/WasmLoadingMessage";
 import { ThemeToggle } from "./components/ThemeToggle";
-import { SnackbarProvider } from "notistack";
+import { useTheme } from "./contexts/ThemeContext";
 import {
     Box,
     Drawer,
@@ -23,10 +21,7 @@ import {
     Autocomplete,
     Button,
     Typography,
-    useTheme,
-    ThemeProvider,
-    createTheme,
-    CssBaseline,
+    useTheme as useMuiTheme,
     IconButton,
     Tooltip
 } from "@mui/material";
@@ -141,121 +136,73 @@ function Main() {
     const [menuIndex, setMenuIndex] = useState("account");
     const navigate = useNavigate();
     const location = useLocation();
-    const [darkMode, setDarkMode] = useState(true);
     const [manageKeysOpen, setManageKeysOpen] = useState(false);
-
-    const theme = createTheme({
-        palette: {
-            mode: darkMode ? 'dark' : 'light',
-            primary: {
-                main: '#18e48f',
-            },
-        },
-    });
+    const { mode, toggleTheme } = useTheme();
+    const theme = useMuiTheme();
 
     useEffect(() => {
         setMenuIndex(location.pathname);
     }, [location]);
 
     return (
-        <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <SnackbarProvider maxSnack={3}>
-                <WasmLoadingMessage />
-                <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-                    <Box
-                        sx={{
-                            width: 240,
-                            flexShrink: 0,
-                            display: { xs: 'none', sm: 'block' },
-                            borderRight: 1,
-                            borderColor: 'divider',
-                        }}
-                    >
-                        <Box sx={{ 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            alignItems: 'center', 
-                            justifyContent: 'flex-start', 
-                            minHeight: 220, 
-                            gap: 3, 
-                            pt: 3 
-                        }}>
-                            <Typography 
-                                variant="h3" 
-                                component={Link} 
-                                to="/" 
-                                sx={{ 
-                                    textDecoration: 'none',
-                                    color: 'inherit',
-                                    textAlign: 'center',
-                                    lineHeight: 1.1
-                                }}
-                            >
-                                snorkle<br />test
-                            </Typography>
-                        </Box>
-                        <List>
-                            {menuItems.map((item) => (
-                                <ListItem
-                                    button
-                                    key={item.path}
-                                    selected={location.pathname === item.path}
-                                    onClick={() => navigate(item.path)}
-                                >
-                                    <ListItemIcon>{item.icon}</ListItemIcon>
-                                    <ListItemText primary={item.label} />
-                                </ListItem>
-                            ))}
-                        </List>
-                        <SidebarNetworkControls />
-                        <Box sx={{ p: 2, textAlign: 'center' }}>
-                            <Button
-                                variant="outlined"
-                                startIcon={<SettingsIcon />}
-                                onClick={() => setManageKeysOpen(true)}
-                            >
-                                Manage Keys
-                            </Button>
-                        </Box>
+        <>
+            <WasmLoadingMessage />
+            <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+                <Box
+                    sx={{
+                        width: 240,
+                        flexShrink: 0,
+                        display: { xs: 'none', sm: 'block' },
+                        borderRight: 1,
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        justifyContent: 'flex-start', 
+                        minHeight: 220, 
+                        gap: 3, 
+                        pt: 3 
+                    }}>
+                        <Typography 
+                            variant="h3" 
+                            component={Link} 
+                            to="/" 
+                            sx={{ 
+                                textDecoration: 'none',
+                                color: 'inherit',
+                                textAlign: 'center',
+                                lineHeight: 1.1
+                            }}
+                        >
+                            snorkle<br />test
+                        </Typography>
+                        <ThemeToggle darkMode={mode === 'dark'} onToggle={toggleTheme} />
                     </Box>
-                    <Box
-                        component="main"
-                        sx={{
-                            flexGrow: 1,
-                            p: 3,
-                            width: { sm: `calc(100% - 240px)` },
-                            minWidth: '850px',
-                        }}
-                    >
-                        <Box sx={{
-                            position: 'absolute',
-                            top: 16,
-                            right: 32,
-                            zIndex: 1000,
-                        }}>
-                            <ThemeToggle 
-                                darkMode={darkMode} 
-                                onToggle={() => setDarkMode(!darkMode)} 
-                            />
-                        </Box>
-                        <Outlet />
-                    </Box>
+                    <List>
+                        {menuItems.map((item) => (
+                            <ListItem
+                                button
+                                key={item.path}
+                                selected={location.pathname === item.path}
+                                onClick={() => navigate(item.path)}
+                            >
+                                <ListItemIcon>{item.icon}</ListItemIcon>
+                                <ListItemText primary={item.label} />
+                            </ListItem>
+                        ))}
+                    </List>
+                    <SidebarNetworkControls />
                 </Box>
-                <ManageKeysModal open={manageKeysOpen} onClose={() => setManageKeysOpen(false)} />
-            </SnackbarProvider>
-        </ThemeProvider>
+                <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+                    <Outlet />
+                </Box>
+            </Box>
+            <ManageKeysModal open={manageKeysOpen} onClose={() => setManageKeysOpen(false)} />
+        </>
     );
 }
 
-export default function AppWithNetworkProvider() {
-    return (
-        <NetworkProvider>
-            <KeyVaultProvider>
-                <TransactionHistoryProvider>
-                    <Main />
-                </TransactionHistoryProvider>
-            </KeyVaultProvider>
-        </NetworkProvider>
-    );
-}
+export default Main;
