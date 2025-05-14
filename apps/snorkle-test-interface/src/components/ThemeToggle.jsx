@@ -6,17 +6,25 @@ export const ThemeToggle = ({ darkMode, onToggle }) => {
         <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
             <IconButton
                 onClick={onToggle}
+                size="large"
                 sx={{
                     backgroundColor: 'background.paper',
                     '&:hover': {
                         backgroundColor: 'action.hover',
                     },
-                    boxShadow: 1,
-                    width: 40,
-                    height: 40,
+                    boxShadow: 2,
+                    width: 48,
+                    height: 48,
+                    border: 1,
+                    borderColor: 'divider',
+                    '&:hover': {
+                        backgroundColor: 'action.hover',
+                        transform: 'scale(1.05)',
+                        transition: 'transform 0.2s ease-in-out'
+                    }
                 }}
             >
-                {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                {darkMode ? <LightModeIcon fontSize="large" /> : <DarkModeIcon fontSize="large" />}
             </IconButton>
         </Tooltip>
     );

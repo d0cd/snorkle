@@ -179,7 +179,6 @@ function Main() {
                         >
                             snorkle<br />test
                         </Typography>
-                        <ThemeToggle darkMode={mode === 'dark'} onToggle={toggleTheme} />
                     </Box>
                     <List>
                         {menuItems.map((item) => (
@@ -194,9 +193,37 @@ function Main() {
                             </ListItem>
                         ))}
                     </List>
-                    <SidebarNetworkControls />
+                    <Box sx={{ mt: 4, mb: 2 }}>
+                        <SidebarNetworkControls />
+                    </Box>
                 </Box>
                 <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'flex-end', 
+                        alignItems: 'center',
+                        gap: 2,
+                        mb: 3,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 1000,
+                        backgroundColor: 'background.default',
+                        py: 1
+                    }}>
+                        <Button
+                            variant="outlined"
+                            startIcon={<SettingsIcon />}
+                            onClick={() => setManageKeysOpen(true)}
+                            sx={{
+                                borderRadius: 2,
+                                textTransform: 'none',
+                                px: 2
+                            }}
+                        >
+                            Manage Keys
+                        </Button>
+                        <ThemeToggle darkMode={mode === 'dark'} onToggle={toggleTheme} />
+                    </Box>
                     <Outlet />
                 </Box>
             </Box>
