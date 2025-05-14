@@ -1,0 +1,19 @@
+{
+  "program": "proto_snorkle_bet_000.aleo",
+  "version": "0.1.0",
+  "description": "",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "credits.aleo",
+      "location": "network",
+      "path": null
+    },
+    {
+      "name": "proto_snorkle_oracle_000.aleo",
+      "location": "local",
+      "path": "../proto_snorkle_oracle_000"
+    }
+  ],
+  "dev_dependencies": null
+}

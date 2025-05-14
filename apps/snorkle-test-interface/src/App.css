@@ -1,0 +1,49 @@
+/*
+ * Input (disabled) - Make box appear not disabled
+ *
+ * https://www.w3schools.com/cssref/pr_class_cursor.asp
+ */
+input[type="text"]:disabled {
+    cursor: text;
+}
+
+@font-face {
+    font-family: "AleoSans";
+    src: url("../public/AleofontSans-Regular.otf") format("opentype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+.headerDark {
+    font-family: "AleoSans";
+    color: white;
+    font-size: 32px;
+    margin-left: 2rem;
+}
+
+.headerDark a {
+    color: white;
+}
+
+.headerLight {
+    font-family: "AleoSans";
+    color: black;
+    font-size: 32px;
+    margin-left: 2rem;
+}
+
+.headerLight a {
+    color: black;
+}
+
+/* Remove border from Material UI Card in light mode */
+.MuiCard-root {
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+
+/* Remove border from top-level containers in light mode */
+body, #root, #root > div {
+    border: none !important;
+    box-shadow: none !important;
+}
