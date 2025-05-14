@@ -1,4 +1,4 @@
-program proto_snorkle_oracle_000.aleo;
+program proto_snorkle_oracle_001.aleo;
 
 struct EventData:
     id as field;
@@ -29,7 +29,7 @@ mapping total_events:
 function register:
     input r0 as field.private;
     async register self.caller r0 into r1;
-    output r1 as proto_snorkle_oracle_000.aleo/register.future;
+    output r1 as proto_snorkle_oracle_001.aleo/register.future;
 
 finalize register:
     input r0 as address.public;
@@ -45,7 +45,7 @@ function submit_event:
     sign.verify r1 self.caller r0 into r2;
     assert.eq r2 true;
     async submit_event self.caller r0 into r3;
-    output r3 as proto_snorkle_oracle_000.aleo/submit_event.future;
+    output r3 as proto_snorkle_oracle_001.aleo/submit_event.future;
 
 finalize submit_event:
     input r0 as address.public;

@@ -1,7 +1,7 @@
-// The 'proto_snorkle_oracle_000' program.
+// The 'proto_snorkle_oracle_001' program.
 // This is a centralized oracle for one-time, events.
 
-program proto_snorkle_oracle_000.aleo {
+program proto_snorkle_oracle_001.aleo {
     // The event data which include the event ID and and the respective scores of the home team and away team.
     struct EventData {
         // The ID of the event
