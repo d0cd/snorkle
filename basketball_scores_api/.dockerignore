@@ -1,0 +1,24 @@
+# Ignore Git directory
+.git
+
+# Ignore Rust build artifacts directory (target)
+/target
+
+# Ignore IDE and editor specific files
+.idea/
+.vscode/
+*.iml
+
+# Ignore local environment files if any (e.g. .env)
+.env
+.env.example
+
+# Ignore OS-specific files (already in global .gitignore, but good to be explicit)
+.DS_Store
+
+# Ignore markdown files unless specifically needed in the image
+# *.md # We might want README.md in the image for reference, commenting this out
+
+# Ignore the .gitignore file itself from the Docker context
+.gitignore
+Dockerfile 

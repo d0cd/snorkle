@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE games SET status = $1 WHERE id = $2 RETURNING id, home_team_id, away_team_id, home_team_score, away_team_score, game_date, status AS \"status: _\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "home_team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "away_team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "home_team_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "away_team_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "game_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "status: _",
+        "type_info": {
+          "Custom": {
+            "name": "game_status_enum",
+            "kind": {
+              "Enum": [
+                "Scheduled",
+                "InProgress",
+                "Finished",
+                "Cancelled"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        {
+          "Custom": {
+            "name": "game_status_enum",
+            "kind": {
+              "Enum": [
+                "Scheduled",
+                "InProgress",
+                "Finished",
+                "Cancelled"
+              ]
+            }
+          }
+        },
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "72b6321f7cdeaf746048f0aa9c9ee12707949cf5bca54d0ed184f490d058b8d6"
+}

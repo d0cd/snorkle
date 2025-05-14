@@ -1,0 +1,46 @@
+services:
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: basketball_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dbuser} # Use environment variable or default
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dbpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-basketball_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432" # Use environment variable for host port or default
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist database data
+    networks:
+      - basketball_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: basketball_api_rust
+    depends_on:
+      postgres_db:
+        condition: service_healthy # Wait for postgres to be healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      RUST_LOG: ${RUST_LOG:-basketball_scores_api=debug,tower_http=debug,sqlx=info}
+      DATABASE_URL: "postgres://${POSTGRES_USER:-dbuser}:${POSTGRES_PASSWORD:-dbpassword}@postgres_db:5432/${POSTGRES_DB:-basketball_db}"
+      # Ensure this DATABASE_URL points to the service name 'postgres_db'
+    networks:
+      - basketball_network
+    # If you need to run migrations on startup, you could use an entrypoint script or modify CMD
+    # For now, migrations are expected to be run manually against the DB before first full start,
+    # or handled by an application-side migration runner if you add one (e.g. in main.rs).
+
+volumes:
+  postgres_data: # Define the named volume
+
+networks:
+  basketball_network:
+    driver: bridge 
