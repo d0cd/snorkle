@@ -36,6 +36,13 @@ async fn status_handler() -> (StatusCode, Html<&'static str>) {
     (StatusCode::OK, Html(response))
 }
 
+async fn info_handler(oracle: &Oracle) -> (StatusCode, Html<String>) {
+    let info = oracle.get_info().await.unwrap();
+    let response = serde_json::to_string(&info).unwrap();
+
+    (StatusCode::OK, Html(response))
+}
+
 async fn update_handler(
     oracle: &Oracle,
     Json(_payload): Json<UpdateRequest>,
@@ -71,6 +78,7 @@ async fn main() -> anyhow::Result<()> {
             .await
             .with_context(|| "Failed to connect to oracle")?,
     );
+    let oracle2 = oracle.clone();
 
     // Build our application with a route
     let app = Router::new()
@@ -78,6 +86,7 @@ async fn main() -> anyhow::Result<()> {
             "/update",
             post(async move |payload| update_handler(&oracle, payload).await),
         )
+        .route("/info", get(async move || info_handler(&oracle2).await))
         .route("/", get(status_handler))
         .route("/status", get(status_handler));
 

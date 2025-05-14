@@ -7,7 +7,7 @@ use anyhow::Context;
 
 use futures::sink::SinkExt;
 
-use snorkle_oracle_api::{BINCODE_CONFIG, ORACLE_PORT, OracleRequest, OracleResponse};
+use snorkle_oracle_api::{BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse};
 
 use bincode::serde::{decode_from_slice, encode_to_vec};
 
@@ -28,11 +28,22 @@ impl Oracle {
         Ok(Self { connection })
     }
 
+    pub async fn get_info(&self) -> anyhow::Result<OracleInfo> {
+        let msg = OracleRequest::GetOracleInfo;
+        let response = self.issue_request(msg).await?;
+
+        #[allow(irrefutable_let_patterns)]
+        let OracleResponse::OracleInfo(info) = response else {
+            anyhow::bail!("Got invalid response");
+        };
+
+        Ok(info)
+    }
+
     pub async fn generate_witness(&self) -> anyhow::Result<Vec<u8>> {
         let msg = OracleRequest::GenerateWitness;
         let response = self.issue_request(msg).await?;
 
-        #[allow(irrefutable_let_patterns)]
         let OracleResponse::Witness(witness) = response else {
             anyhow::bail!("Got invalid response");
         };
@@ -52,7 +63,8 @@ impl Oracle {
         if let Some(data) = connection.next().await {
             log::debug!("Got response from oracle");
             let data = data?;
-            let (response, _) = decode_from_slice(&data, BINCODE_CONFIG).with_context(|| "Failed to deserialize data from oracle")?;
+            let (response, _) = decode_from_slice(&data, BINCODE_CONFIG)
+                .with_context(|| "Failed to deserialize data from oracle")?;
             Ok(response)
         } else {
             anyhow::bail!("Oracle disconnected");

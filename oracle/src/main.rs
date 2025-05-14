@@ -19,7 +19,7 @@ use ureq::unversioned::transport::DefaultConnector;
 
 use anyhow::Context;
 
-use snorkle_oracle_api::{BINCODE_CONFIG, OracleRequest, OracleResponse};
+use snorkle_oracle_api::{BINCODE_CONFIG, OracleInfo, OracleRequest, OracleResponse};
 
 mod http;
 use http::Resolver;
@@ -33,6 +33,9 @@ use sgx_crypto::{
 };
 
 #[cfg(not(target_env = "sgx"))]
+use tdx_guest as tdx;
+
+#[cfg(not(target_env = "sgx"))]
 use {
     ecdsa::SigningKey,
     p256::SecretKey,
@@ -40,25 +43,66 @@ use {
     sha2::{Digest, Sha256},
 };
 
+use schnorrkel::{Keypair, Signature};
+
+use std::process::Command;
+
 fn main() -> anyhow::Result<()> {
     let oracle = Oracle::new()?;
     oracle.run()
 }
 
-struct Oracle {}
+// Function to run the `trustauthority-cli quote` command
+fn run_trustauthority_cli(user_data: &str) -> anyhow::Result<String> {
+    // Create the command
+    let output = Command::new("sudo")
+        .arg("trustauthority-cli")
+        .arg("quote")
+        .arg("--user-data")
+        .arg(user_data) // Pass user_data argument
+        .output() // Execute the command
+        .with_context(|| "Failed to execute trustauthority-cli")?;
+
+    // Check if the command executed successfully
+    if !output.status.success() {
+        // If the command failed, return the stderr output as an error
+        let error_msg = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("trustauthority-cli failed: {}", error_msg);
+    }
+
+    // Return the output from the command if successful
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+struct Oracle {
+    keypair: Keypair,
+    info: OracleInfo,
+}
+
+use base64::prelude::*;
 
 impl Oracle {
+    #[cfg(target_env = "sgx")]
     pub fn new() -> anyhow::Result<Self> {
-        #[cfg(not(target_env = "sgx"))]
-        {
-            match tdx_guest::init_tdx() {
-                Ok(_) => {}
-                Err(err) => {
-                    anyhow::bail!("Failed to set up enclave: {err:?}");
-                }
-            }
-        }
         Ok(Self {})
+    }
+
+    #[cfg(not(target_env = "sgx"))]
+    pub fn new() -> anyhow::Result<Self> {
+        let keypair: Keypair = Keypair::generate_with(OsRng);
+        let pubkey = keypair.public.as_compressed();
+
+        let key_hash = BASE64_STANDARD.encode(pubkey.as_bytes());
+        let report = BASE64_STANDARD.encode(run_trustauthority_cli(&key_hash)?);
+
+        println!("Keypair and Trust Domain set up!");
+        Ok(Self {
+            info: OracleInfo {
+                pubkey: key_hash,
+                report,
+            },
+            keypair,
+        })
     }
 
     pub fn run(&self) -> anyhow::Result<()> {
@@ -117,6 +161,7 @@ impl Oracle {
                 let witness = self.generate_witness()?;
                 Ok(OracleResponse::Witness(witness))
             }
+            OracleRequest::GetOracleInfo => Ok(OracleResponse::OracleInfo(self.info.clone())),
         }
     }
 
