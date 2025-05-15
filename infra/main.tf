@@ -19,14 +19,16 @@ resource "google_project_service" "required_apis" {
     "compute.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
-    "container.googleapis.com"
+    "container.googleapis.com",
+    "run.googleapis.com",
+    "sqladmin.googleapis.com"
   ])
-  
+
   project = var.project_id
   service = each.key
 
   disable_dependent_services = false
-  disable_on_destroy        = false
+  disable_on_destroy         = false
 }
 
 # Grant owner access to specified users
@@ -36,7 +38,7 @@ resource "google_project_iam_member" "owners" {
     "pranav@provable.com",
     "kai@provable.com"
   ])
-  
+
   project = var.project_id
   role    = "roles/owner"
   member  = "user:${each.key}"
@@ -148,5 +150,123 @@ resource "google_compute_instance" "snorkle" {
   }
 
   tags = ["ssh"]
-} 
+}
 
+# Reserve a static external IP address
+resource "google_compute_address" "snorkle_static_ip_2" {
+  name    = "snorkle-instance-ip-2"
+  project = var.project_id
+  region  = var.region
+}
+
+data "google_compute_image" "ubuntu_2404" {
+  family  = "ubuntu-2404-lts-amd64"
+  project = "ubuntu-os-cloud"
+}
+
+resource "google_compute_instance" "snorkle-02" {
+  project      = var.project_id
+  zone         = var.zone
+  name         = "snorkle-02"
+  machine_type = var.machine_type
+
+  boot_disk {
+    initialize_params {
+      size  = var.boot_disk_size
+      image = data.google_compute_image.ubuntu_2404.self_link
+    }
+  }
+
+  network_interface {
+    network    = google_compute_network.vpc.id
+    subnetwork = google_compute_subnetwork.subnet_a.id
+    access_config {
+      // Assign the reserved static IP. If this block is empty, an ephemeral IP is used.
+      nat_ip = google_compute_address.snorkle_static_ip_2.address
+    }
+  }
+
+  confidential_instance_config {
+    enable_confidential_compute = true
+    confidential_instance_type  = "TDX" # This is the default if enable_confidential_compute is true, but explicit for clarity
+  }
+
+  scheduling {
+    on_host_maintenance = "TERMINATE"
+  }
+
+  tags = ["ssh"]
+}
+
+resource "google_project_service" "artifactregistry" {
+  project                    = var.project_id
+  service                    = "artifactregistry.googleapis.com"
+  disable_dependent_services = true
+  disable_on_destroy         = false
+}
+
+resource "google_artifact_registry_repository" "docker" {
+  project       = var.project_id
+  location      = var.location
+  repository_id = var.repository_id
+  description   = var.description
+  format        = "DOCKER"
+}
+
+### Cloud SQL
+
+resource "google_sql_database_instance" "postgres" {
+  name             = "snorkle-postgres"
+  database_version = "POSTGRES_15"
+  region           = var.region
+
+  settings {
+    tier = "db-f1-micro"
+    ip_configuration {
+      authorized_networks {
+        name  = "all"
+        value = "0.0.0.0/0" # WARNING: open to the world, restrict for production!
+      }
+    }
+    backup_configuration {
+      enabled = true
+    }
+  }
+}
+
+resource "google_sql_database" "app_db" {
+  name     = "appdb"
+  instance = google_sql_database_instance.postgres.name
+}
+
+resource "google_sql_user" "app_user" {
+  name     = "appuser"
+  instance = google_sql_database_instance.postgres.name
+  password = var.db_password
+}
+
+output "cloudsql_postgres_connection_name" {
+  value       = google_sql_database_instance.postgres.connection_name
+  description = "Cloud SQL instance connection name (for use with Cloud SQL Proxy or direct connection)."
+}
+
+output "cloudsql_postgres_public_ip" {
+  value       = google_sql_database_instance.postgres.public_ip_address
+  description = "Cloud SQL instance public IP address."
+}
+
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "cloud_run_artifact_registry_reader" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "cloud_run_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}

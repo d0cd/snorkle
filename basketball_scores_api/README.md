@@ -97,4 +97,26 @@ The API provides the following endpoints:
 - Pagination for list endpoints.
 - Adding player statistics.
 - User authentication/authorization.
-- Automated migration runs within Docker Compose (e.g., using an entrypoint script). 
+- Automated migration runs within Docker Compose (e.g., using an entrypoint script).
+
+## Deploying to Google Cloud Run
+
+To deploy this API to Google Cloud Run using a container image in Artifact Registry and connect it to a Cloud SQL Postgres instance, use the following command:
+
+```bash
+gcloud run deploy scores-api \
+  --image gcr.io/snorkle-2025/scores-api:0.1.0 \
+  --platform managed \
+  --region northamerica-northeast1 \
+  --project snorkle-2025 \
+  --add-cloudsql-instances snorkle-2025:us-west1:snorkle-postgres \
+  --set-env-vars "PORT=3000,DATABASE_URL=postgres://appuser:<PASSWORD>@/appdb?host=/cloudsql/snorkle-2025:us-west1:snorkle-postgres" \
+  --allow-unauthenticated
+```
+
+- Replace `<PASSWORD>` with your actual Cloud SQL user password.
+- The `PORT=3000` environment variable tells Cloud Run to route traffic to port 3000 in your container (which is what your Rust API uses).
+- The `DATABASE_URL` is set up for Cloud SQL Auth Proxy via Unix socket.
+- `--allow-unauthenticated` makes the service public (omit if you want authentication).
+
+For private images or custom service accounts, see the Google Cloud Run documentation for additional flags. 
