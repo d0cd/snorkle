@@ -1,7 +1,7 @@
 # snorkle
 snark-friendly oracles on aleo
 
-# Dashboard
+# Artifacts
 
 The live dashboard for the oracle can be found here: https://snorkle-dashboard-349861721231.northamerica-northeast1.run.app/
 
@@ -10,7 +10,9 @@ Instructions to run the oracle service is here: https://github.com/d0cd/snorkle/
 The mock sports API is here: scores-api-349861721231.northamerica-northeast1.run.app
 And can be queried with: `curl -s https://scores-api-349861721231.northamerica-northeast1.run.app/teams | jq '.'`
 
-
+The programs are deployed on mainnet at:
+- https://explorer.provable.com/program/proto_snorkle_oracle_002.aleo
+- https://explorer.provable.com/program/proto_snorkle_bet_000.aleo
 
 ## Leo
 
