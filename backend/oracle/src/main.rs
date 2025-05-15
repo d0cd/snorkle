@@ -53,16 +53,16 @@ impl<N: Network> Oracle<N> {
     /// Constructor for TDX and macOS "dummy" oracle
     #[cfg(not(target_env = "sgx"))]
     pub fn new() -> anyhow::Result<Self> {
-        const DEVNET_PRIVATE_KEY: &str =
-            "APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH";
+        //FIXME don't hardcode this
+        const TESTNET_PRIVATE_KEY: &str =
+            "APrivateKey1zkp3TFLRzSPqqhNh9o6csyZ1yPaizmtUzwEWMeTJ9bXxQMA";
 
         let program = Self::init_program();
-        println!("Loaded program!");
+        println!("Loaded program");
 
         // Create the private key.
-        let private_key = PrivateKey::<N>::from_str(DEVNET_PRIVATE_KEY)
+        let private_key = PrivateKey::<N>::from_str(TESTNET_PRIVATE_KEY)
             .expect("Failed to initialize private key");
-        println!("Generated private key!");
 
         let address = Address::<N>::try_from(&private_key)?;
         println!("Oracle's address is {address}");
