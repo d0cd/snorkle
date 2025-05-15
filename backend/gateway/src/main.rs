@@ -172,7 +172,7 @@ impl Gateway {
             );
         }
 
-        let txn_id = response.text().await?;
+        let txn_id = response.text().await?.replace("\"", "");
         log::debug!("Transaction ID was: {txn_id}");
 
         Ok(txn_id)
