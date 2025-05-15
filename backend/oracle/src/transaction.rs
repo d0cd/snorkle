@@ -36,16 +36,29 @@ impl<N: Network> Oracle<N> {
             .add_program(&self.program)
             .expect("Failed to add program");
 
+        let query = Some(snarkvm::prelude::query::Query::from(
+            "https://api.explorer.provable.com/v1",
+        ));
+
         // Create the transaction.
-        vm.execute(
-            &self.key,
-            (self.program.id(), transition),
-            args.iter(),
-            None,
-            0,
-            None,
-            &mut OsRng,
-        )
-        .with_context(|| "Failed to create a transaction")
+        let txn = vm
+            .execute(
+                &self.key,
+                (self.program.id(), transition),
+                args.iter(),
+                None,
+                0,
+                query,
+                &mut OsRng,
+            )
+            .with_context(|| "Failed to create a transaction")?;
+
+        //#[cfg(feature = "verify")]
+        vm.process().read().verify_execution(
+            snarkvm::algorithms::snark::varuna::VarunaVersion::V2,
+            txn.execution().unwrap(),
+        )?;
+
+        Ok(txn)
     }
 }
