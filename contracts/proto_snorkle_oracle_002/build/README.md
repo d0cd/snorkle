@@ -1,4 +1,4 @@
-# proto_snorkle_oracle_001.aleo
+# proto_snorkle_oracle_002.aleo
 
 ## Build Guide
 

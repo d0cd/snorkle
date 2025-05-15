@@ -1,6 +1,7 @@
 {
-    "program": "proto_snorkle_oracle_001.aleo",
-    "version": "0.0.0",
-    "description": "",
-    "license": "MIT"
+  "program": "proto_snorkle_oracle_002.aleo",
+  "version": "0.1.0",
+  "description": "",
+  "license": "MIT",
+  "dependencies": null
 }

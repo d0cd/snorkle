@@ -1,7 +1,7 @@
-// The 'proto_snorkle_oracle_001' program.
+// The 'proto_snorkle_oracle_002' program.
 // This is a centralized oracle for one-time, events.
 
-program proto_snorkle_oracle_001.aleo {
+program proto_snorkle_oracle_002.aleo {
     // The event data which include the event ID and and the respective scores of the home team and away team.
     struct EventData {
         // The ID of the event
@@ -32,7 +32,7 @@ program proto_snorkle_oracle_001.aleo {
 
     // How many blocks each oracle is valid before it has to register again. This basically implies an expiry date for
     // each oracle.
-    const TIME_LIMIT: u32 = 1000u32;
+    const TIME_LIMIT: u32 = 10000u32;
 
     // A mapping of registered oracle addresses to the hash of their attestations and the time of their registration
     mapping registered_oracles: address => OracleData;
@@ -63,19 +63,23 @@ program proto_snorkle_oracle_001.aleo {
 
     async function finalize_register(oracle_id: address, attestation_hash: field) {
         // Registering an oracle multiple times is allowed. This can be useful to refresh the registration_timestamp. 
+        if !registered_oracles.contains(oracle_id) {
+            // Only update the vector of oracle addresses if we haven't seen this oracle before
+
+            // The size of vector `registered_oracles_addresses` which is stored in a separate mapping
+            let current_total_oracles: u128 = total_oracles.get_or_use(0u8, 0u128);
+
+            // Append the event ID into the vector `total_events`
+            registered_oracles_addresses.set(current_total_oracles, oracle_id);
+
+            // Update the total number of events
+            total_oracles.set(0u8, current_total_oracles + 1u128);
+        }
+
         registered_oracles.set(oracle_id, OracleData {
             attestation_hash,
             registration_timestamp: block.height,
         });
-
-	    // The size of vector `registered_oracles_addresses` which is stored in a separate mapping
-        let current_total_oracles: u128 = total_oracles.get_or_use(0u8, 0u128);
-
-        // Append the event ID into the vector `total_events`
-        registered_oracles_addresses.set(current_total_oracles, oracle_id);
-
-        // Update the total number of events
-        total_oracles.set(0u8, current_total_oracles + 1u128);
     }
 
     // Submit an event 
@@ -98,8 +102,9 @@ program proto_snorkle_oracle_001.aleo {
             attestation_hash: 0field,
             registration_timestamp: 0u32,
         }).registration_timestamp;
-        
-        assert(oracle_registration_timestamp + TIME_LIMIT <= block.height);
+      
+        // Make sure the oracle hasn't expired yet
+        assert(oracle_registration_timestamp + TIME_LIMIT >= block.height);
 
         // Check that the event has not been submitted yet.
         assert(!events.contains(event_id));
