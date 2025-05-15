@@ -1,5 +1,6 @@
 use std::sync::Arc;
-use std::time::Instant;
+
+use std::sync::Mutex;
 
 use anyhow::Context;
 
@@ -32,35 +33,53 @@ struct StatusResponse {
 }
 
 struct RequestInfo {
-    time: Instant,
+    time: DateTime<Local>,
     game_id: String,
 }
 
 struct Gateway {
-    history: Vec<RequestInfo>,
+    history: Mutex<Vec<RequestInfo>>,
     oracle: Oracle,
 }
 
+use chrono::{DateTime, Local};
+
 impl Gateway {
-    async fn landing_handler(&self) -> Result<Html<&'static str>, StatusCode> {
-        Ok(Html(
+    async fn landing_handler(&self) -> Result<Html<String>, StatusCode> {
+        let history = self.history.lock().unwrap();
+
+        let history_str = if history.is_empty() {
+            "No events submitted yet".to_string()
+        } else {
+            let entries = history
+                .iter()
+                .map(|info| {
+                    let date_str = info.time.format("%a %b %e %T %Y").to_string();
+                    format!("<li>{date_str}: game_id={}", info.game_id)
+                })
+                .collect::<Vec<String>>()
+                .join("\n");
+
+            format!("<ul>{entries}</ul>")
+        };
+
+        Ok(Html(format!(
             "<html>
             <head><title>Snorkle Oracle</title><head>
-            <body>i
+            <body>
             <h1>Snorkle Oracle</h1>
             <h2>API Endpoints</h2>
             <ul>
                 <li><b>/info</b> Show report data for the oracle</li>
                 <li><b>/submit</b> Ask the oracle to submit a new event</li>
             </ul>
-            <h2>Request History</h2>
-            <ul>
-
+            <h2>Event History</h2>
+            {history_str}
             </ul>
             </body>
             </html>
-            ",
-        ))
+            "
+        )))
     }
 
     async fn info_handler(&self) -> Result<Json<String>, StatusCode> {
@@ -95,6 +114,11 @@ impl Gateway {
         }
 
         log::debug!("Successfully sent new transaction");
+        self.history.lock().unwrap().push(RequestInfo {
+            time: Local::now(),
+            game_id: request.game_id.clone(),
+        });
+
         Ok(Json(SubmitResult {
             game_data,
             transaction: txn_str,
@@ -150,7 +174,10 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_context(|| "Failed to connect to oracle")?;
 
-    let obj = Arc::new(Gateway { oracle, history: vec![] });
+    let obj = Arc::new(Gateway {
+        oracle,
+        history: Default::default(),
+    });
     let obj1 = obj.clone();
     let obj2 = obj.clone();
     let obj3 = obj.clone();
