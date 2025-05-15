@@ -47,6 +47,7 @@ use chrono::{DateTime, Local};
 
 impl Gateway {
     async fn landing_handler(&self) -> Result<Html<String>, StatusCode> {
+        let info = self.oracle.get_info().await.unwrap();
         let history = self.history.lock().unwrap();
 
         let history_str = if history.is_empty() {
@@ -56,7 +57,10 @@ impl Gateway {
                 .iter()
                 .map(|info| {
                     let date_str = info.time.format("%a %b %e %T %Y").to_string();
-                    format!("<li>{date_str}: transaction_id={} game_id={}", info.transaction_id, info.game_id)
+                    format!(
+                        "<li>{date_str}: transaction_id={} game_id={}",
+                        info.transaction_id, info.game_id
+                    )
                 })
                 .collect::<Vec<String>>()
                 .join("\n");
@@ -64,14 +68,12 @@ impl Gateway {
             format!("<ul>{entries}</ul>")
         };
 
-        let address = "";//self.oracle.get_info().await.unwrap().address;
-
         Ok(Html(format!(
             "<html>
             <head><title>Snorkle Oracle</title><head>
             <body>
             <h1>Snorkle Oracle</h1>
-            <b>Oracle address is {address}.</p>
+            <b>Oracle address is {}.</p>
             <h2>API Endpoints</h2>
             <ul>
                 <li><b>/info</b> Show report data for the oracle</li>
@@ -82,7 +84,8 @@ impl Gateway {
             </ul>
             </body>
             </html>
-            "
+            ",
+            info.address
         )))
     }
 
@@ -115,8 +118,8 @@ impl Gateway {
         let transaction_id = match self.issue_transaction(txn_str.clone()).await {
             Ok(txn_id) => txn_id,
             Err(err) => {
-            log::error!("Got error: {err}");
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                log::error!("Got error: {err}");
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
         };
 
@@ -169,7 +172,7 @@ impl Gateway {
             );
         }
 
-        let txn_id= response.text().await?;
+        let txn_id = response.text().await?;
         log::debug!("Transaction ID was: {txn_id}");
 
         Ok(txn_id)

@@ -3,6 +3,9 @@ name = "snorkle-oracle"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+extra-verify = []
+
 [dependencies]
 snorkle-oracle-interface = { path="../interface" }
 bincode = { workspace=true }

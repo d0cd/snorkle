@@ -53,7 +53,7 @@ impl<N: Network> Oracle<N> {
             )
             .with_context(|| "Failed to create a transaction")?;
 
-        //#[cfg(feature = "verify")]
+        #[cfg(feature = "extra-verify")]
         vm.process().read().verify_execution(
             snarkvm::algorithms::snark::varuna::VarunaVersion::V2,
             txn.execution().unwrap(),
