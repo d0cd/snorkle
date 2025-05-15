@@ -179,14 +179,14 @@ export async function getMappingValue(
  * Verifies an attestation for a specific oracle
  * @param programId - The program ID to check against
  * @param oracleAddress - The oracle address to verify
- * @param attestationHash - The attestation hash to verify
+ * @param attestationBytes - The complete attestation bytes in hex format
  * @param network - The network to check on (mainnet/testnet/canary)
  * @returns Promise<AttestationResult>
  */
 export async function verifyAttestation(
   programId: string,
   oracleAddress: string,
-  attestationHash: string,
+  attestationBytes: string,
   network: string
 ): Promise<AttestationResult> {
   try {
@@ -196,6 +196,23 @@ export async function verifyAttestation(
       : network === 'testnet'
       ? 'https://api.explorer.provable.com/v1'
       : 'http://localhost:3030';
+
+    // Create a BHP1024 instance
+    const bhp = new aleo.BHP1024();
+    
+    // Convert hex string to Uint8Array
+    const bytes = new Uint8Array(attestationBytes.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+    
+    // Convert bytes to bits (array of booleans)
+    const bits: boolean[] = [];
+    for (let i = 0; i < bytes.length; i++) {
+      for (let j = 7; j >= 0; j--) {
+        bits.push((bytes[i] & (1 << j)) !== 0);
+      }
+    }
+    
+    // Hash the attestation bits using BHP1024
+    const attestationHash = bhp.hash(bits);
 
     // Fetch oracle data directly using the address
     const oracleRes = await fetch(`${rpcUrl}/${network}/program/${programId}/mapping/registered_oracles/${oracleAddress}`);
@@ -207,14 +224,18 @@ export async function verifyAttestation(
     const data = oracleData.value || oracleData;
 
     // Check if attestation hash matches
-    if (data.attestation_hash === attestationHash) {
+    if (data.attestation_hash === attestationHash.toString()) {
       return {
-        isValid: true
+        isValid: true,
+        oracleId: oracleAddress,
+        registrationTimestamp: data.registration_timestamp,
+        validUntil: data.valid_until
       };
     }
 
     return { isValid: false, error: 'Attestation hash does not match' };
   } catch (error) {
+    console.error('Error verifying attestation:', error);
     return { isValid: false, error: 'Failed to verify attestation' };
   }
 } 

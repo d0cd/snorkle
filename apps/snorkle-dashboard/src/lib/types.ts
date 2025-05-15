@@ -29,4 +29,7 @@ export interface DashboardConfig {
 export interface AttestationResult {
   isValid: boolean;
   error?: string;
+  oracleId?: string;
+  registrationTimestamp?: number;
+  validUntil?: number;
 } 

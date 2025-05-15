@@ -30,7 +30,7 @@ export function RegistryDashboard({ network, endpointUrl, program, mode, onRefre
   const [rawEntries, setRawEntries] = useState<any[]>([]);
   const [currentBlockHeight, setCurrentBlockHeight] = useState<number | null>(null);
   const [attestationInput, setAttestationInput] = useState('');
-  const [attestationHash, setAttestationHash] = useState('');
+  const [attestationBytes, setAttestationBytes] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [verificationResult, setVerificationResult] = useState<any>(null);
@@ -95,14 +95,14 @@ export function RegistryDashboard({ network, endpointUrl, program, mode, onRefre
   }, [program, endpointUrl, network, onRefresh, numOracles]);
 
   const handleAttestationCheck = async () => {
-    if (!attestationInput.trim() || !attestationHash.trim()) {
-      setSnackbarMessage('Please enter both oracle address and attestation hash');
+    if (!attestationInput.trim() || !attestationBytes.trim()) {
+      setSnackbarMessage('Please enter both oracle address and attestation bytes');
       setSnackbarOpen(true);
       return;
     }
 
     try {
-      const result = await verifyAttestation(program, attestationInput.trim(), attestationHash.trim(), network);
+      const result = await verifyAttestation(program, attestationInput.trim(), attestationBytes.trim(), network);
       setVerificationResult(result);
       
       if (result.isValid) {
@@ -185,19 +185,21 @@ export function RegistryDashboard({ network, endpointUrl, program, mode, onRefre
             error={verificationResult && !verificationResult.isValid}
           />
           <TextField
-            label="Attestation Hash"
+            label="Attestation Bytes"
             variant="outlined"
             size="small"
-            value={attestationHash}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAttestationHash(e.target.value)}
+            value={attestationBytes}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAttestationBytes(e.target.value)}
             fullWidth
+            multiline
+            rows={4}
             error={verificationResult && !verificationResult.isValid}
             helperText={verificationResult && !verificationResult.isValid ? verificationResult.error : ''}
           />
           <Button 
             variant="contained" 
             onClick={handleAttestationCheck}
-            disabled={loading || !attestationInput.trim() || !attestationHash.trim()}
+            disabled={loading || !attestationInput.trim() || !attestationBytes.trim()}
           >
             Verify
           </Button>
