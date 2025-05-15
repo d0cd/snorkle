@@ -1,10 +1,9 @@
-import { Program, Mapping, MappingEntry } from './types';
+import { Program, Mapping, MappingEntry, AttestationResult } from './types';
 import { ALEO_CONFIG } from './config';
-import { AleoNetworkClient, NetworkRecordProvider } from '@aleohq/sdk';
+import * as aleo from '@provablehq/sdk';
 
 // Initialize Aleo client
-const aleoClient = new AleoNetworkClient(ALEO_CONFIG.rpcUrl);
-const recordProvider = new NetworkRecordProvider(aleoClient);
+const aleoClient = new aleo.AleoNetworkClient(ALEO_CONFIG.rpcUrl);
 
 // Mock data for development
 const mockPrograms: Program[] = [
@@ -50,96 +49,66 @@ async function aleoRpcCall(endpoint: string, params: any = {}) {
   }
 }
 
-export async function fetchPrograms(): Promise<Program[]> {
+export const fetchPrograms = async (network: string, endpoint: string): Promise<Program[]> => {
   try {
-    // TODO: Replace with actual program fetching using Aleo SDK
-    // For now, return mock data
-    return mockPrograms;
+    const client = new aleo.AleoNetworkClient(endpoint);
+    const programs = await client.getPrograms();
+    return programs.map(program => ({
+      id: program.id,
+      name: program.name,
+      owner: program.owner,
+      imports: program.imports || [],
+      mappings: program.mappings || []
+    }));
   } catch (error) {
     console.error('Error fetching programs:', error);
-    throw new Error('Failed to fetch programs');
+    throw error;
   }
-}
+};
 
-export async function fetchMappingEntries(
-  programId: string,
-  mappingId: string,
-  pageSize: number,
-  currentPage: number
-): Promise<MappingEntry[]> {
+export const fetchMappingEntries = async (
+  network: string,
+  endpoint: string,
+  program: string,
+  mapping: string
+): Promise<MappingEntry[]> => {
   try {
-    // Calculate start and end indices for pagination
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-
-    // Get the program's ABI
-    const program = await aleoClient.getProgram(programId);
-    if (!program) {
-      throw new Error(`Program ${programId} not found`);
-    }
-
-    // Get mapping entries
-    const entries: MappingEntry[] = [];
-    for (let i = startIndex; i < endIndex; i++) {
-      try {
-        const value = await aleoClient.getMappingValue(programId, mappingId, i.toString());
-        if (value) {
-          entries.push({
-            key: i.toString(),
-            value: parseAleoValue(value, 'field'), // Adjust type based on mapping definition
-          });
-        }
-      } catch (error) {
-        console.warn(`Failed to fetch entry at index ${i}:`, error);
-        continue;
-      }
-    }
-
-    return entries;
+    const client = new aleo.AleoNetworkClient(endpoint);
+    const entries = await client.getMappingEntries(program, mapping);
+    return entries.map(entry => ({
+      key: entry.key,
+      value: entry.value
+    }));
   } catch (error) {
     console.error('Error fetching mapping entries:', error);
-    throw new Error('Failed to fetch mapping entries');
+    throw error;
   }
-}
+};
 
-export async function getMappingLength(
-  programId: string,
-  mappingId: string
-): Promise<number> {
+export const getMappingLength = async (
+  network: string,
+  endpoint: string,
+  program: string,
+  mapping: string
+): Promise<number> => {
   try {
-    // Get the program's ABI
-    const program = await aleoClient.getProgram(programId);
-    if (!program) {
-      throw new Error(`Program ${programId} not found`);
-    }
-
-    // Try to get the length mapping value
-    const lengthValue = await aleoClient.getMappingValue(programId, 'length', '0');
-    if (lengthValue) {
-      return Number(parseAleoValue(lengthValue, 'u128'));
-    }
-
-    // If length mapping is not available, try to count entries
-    let count = 0;
-    let hasMore = true;
-    while (hasMore) {
-      try {
-        const value = await aleoClient.getMappingValue(programId, mappingId, count.toString());
-        if (value) {
-          count++;
-        } else {
-          hasMore = false;
-        }
-      } catch (error) {
-        hasMore = false;
-      }
-    }
-    return count;
+    const client = new aleo.AleoNetworkClient(endpoint);
+    const length = await client.getMappingLength(program, mapping);
+    return length;
   } catch (error) {
     console.error('Error getting mapping length:', error);
-    throw new Error('Failed to get mapping length');
+    throw error;
   }
-}
+};
+
+export const parseAleoValue = (value: string): any => {
+  try {
+    return aleo.parseAleoValue(value);
+  } catch (error) {
+    console.error('Error parsing Aleo value:', error);
+    return null;
+  }
+};
 
 // Helper function to format Aleo values
 export function formatAleoValue(value: any): string {
@@ -147,35 +116,6 @@ export function formatAleoValue(value: any): string {
     return JSON.stringify(value, null, 2);
   }
   return String(value);
-}
-
-// Helper function to parse Aleo values
-export function parseAleoValue(value: string, type: string): any {
-  try {
-    switch (type) {
-      case 'u8':
-      case 'u16':
-      case 'u32':
-      case 'u64':
-      case 'u128':
-        return BigInt(value);
-      case 'i8':
-      case 'i16':
-      case 'i32':
-      case 'i64':
-      case 'i128':
-        return BigInt(value);
-      case 'field':
-        return value;
-      case 'boolean':
-        return value === 'true';
-      default:
-        return value;
-    }
-  } catch (error) {
-    console.error('Error parsing Aleo value:', error);
-    return value;
-  }
 }
 
 // Helper function to get program ABI
@@ -203,29 +143,20 @@ export async function getMappingValue(
   }
 }
 
-// Interface for attestation verification result
-interface AttestationVerificationResult {
-  isValid: boolean;
-  oracleId?: string;
-  registrationTimestamp?: number;
-  validUntil?: number;
-  error?: string;
-}
-
 /**
  * Verifies an attestation for a specific oracle
  * @param programId - The program ID to check against
  * @param oracleAddress - The oracle address to verify
  * @param attestationHash - The attestation hash to verify
  * @param network - The network to check on (mainnet/testnet/canary)
- * @returns Promise<AttestationVerificationResult>
+ * @returns Promise<AttestationResult>
  */
 export async function verifyAttestation(
   programId: string,
   oracleAddress: string,
   attestationHash: string,
   network: string
-): Promise<AttestationVerificationResult> {
+): Promise<AttestationResult> {
   try {
     // Get the RPC URL based on the network
     const rpcUrl = network === 'mainnet' 
@@ -246,10 +177,7 @@ export async function verifyAttestation(
     // Check if attestation hash matches
     if (data.attestation_hash === attestationHash) {
       return {
-        isValid: true,
-        oracleId: oracleAddress,
-        registrationTimestamp: parseInt(data.registration_timestamp),
-        validUntil: parseInt(data.registration_timestamp) + 1000
+        isValid: true
       };
     }
 
