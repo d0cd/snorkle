@@ -13,6 +13,8 @@ use axum::{
 
 use serde::{Deserialize, Serialize};
 
+use snorkle_oracle_interface::OracleInfo;
+
 mod oracle;
 use oracle::Oracle;
 
@@ -41,13 +43,14 @@ struct RequestInfo {
 struct Gateway {
     history: Mutex<Vec<RequestInfo>>,
     oracle: Oracle,
+    oracle_info: Mutex<Option<OracleInfo>>,
 }
 
 use chrono::{DateTime, Local};
 
 impl Gateway {
     async fn landing_handler(&self) -> Result<Html<String>, StatusCode> {
-        let info = self.oracle.get_info().await.unwrap();
+        let info = self.oracle_info.lock().unwrap().clone().unwrap();
         let history = self.history.lock().unwrap();
 
         let history_str = if history.is_empty() {
@@ -89,8 +92,14 @@ impl Gateway {
         )))
     }
 
+    async fn fetch_oracle_info(&self) -> anyhow::Result<()> {
+        let info = self.oracle.get_info().await?;
+        *self.oracle_info.lock().unwrap() = Some(info);
+        Ok(())
+    }
+
     async fn info_handler(&self) -> Result<Json<String>, StatusCode> {
-        let info = self.oracle.get_info().await.unwrap();
+        let info = self.oracle_info.lock().unwrap().clone().unwrap();
         let response = serde_json::to_string(&info).unwrap();
 
         Ok(Json(response))
@@ -189,6 +198,7 @@ async fn main() -> anyhow::Result<()> {
 
     let obj = Arc::new(Gateway {
         oracle,
+        oracle_info: Default::default(),
         history: Default::default(),
     });
     let obj1 = obj.clone();
@@ -203,6 +213,8 @@ async fn main() -> anyhow::Result<()> {
         )
         .route("/info", get(async move || obj2.info_handler().await))
         .route("/", get(async move || obj3.landing_handler().await));
+
+    obj.fetch_oracle_info().await?;
 
     log::info!("Registering oracle");
     obj.register().await?;

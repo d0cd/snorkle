@@ -73,12 +73,11 @@ impl Oracle {
 
         let mut connection = self.connection.lock().await;
 
-        log::debug!("Sending request to oracle");
+        log::trace!("Sending request to oracle");
         connection.send(data.into()).await?;
 
-        log::trace!("Waiting for oracle response");
         if let Some(data) = connection.next().await {
-            log::debug!("Got response from oracle");
+            log::trace!("Got response from oracle");
             let data = data?;
             let (response, _) = decode_from_slice(&data, BINCODE_CONFIG)
                 .with_context(|| "Failed to deserialize data from oracle")?;
