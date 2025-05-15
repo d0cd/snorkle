@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -15,8 +16,17 @@ import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
-import { DataTable } from './components/DataTable';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+
+const EventsDashboard = dynamic(() => import('./components/EventsDashboard').then(mod => mod.EventsDashboard), {
+  ssr: false,
+  loading: () => <Alert severity="info">Loading dashboard...</Alert>
+});
+
+const RegistryDashboard = dynamic(() => import('./components/RegistryDashboard').then(mod => mod.RegistryDashboard), {
+  ssr: false,
+  loading: () => <Alert severity="info">Loading dashboard...</Alert>
+});
 
 const NETWORKS = [
   { label: 'mainnet', value: 'mainnet' },
@@ -40,6 +50,8 @@ export default function AppPage() {
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [mode, setMode] = useState<'light' | 'dark'>('dark');
   const [program, setProgram] = useState('proto_snorkle_oracle_001.aleo');
+  const [blockHeight, setBlockHeight] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Get the actual endpoint URL
   const endpointObj = ENDPOINTS.find(e => e.value === endpoint);
@@ -60,6 +72,27 @@ export default function AppPage() {
     { id: 'proto_snorkle_bet_000.aleo', name: 'proto_snorkle_bet_000.aleo' },
     { id: 'proto_snorkle_oracle_000.aleo', name: 'proto_snorkle_oracle_000.aleo' },
   ];
+
+  // Fetch block height for sidebar
+  useEffect(() => {
+    async function fetchBlockHeight() {
+      if (!program || !endpointUrl) return;
+      try {
+        const heightRes = await fetch(`${endpointUrl}/${network}/block/height/latest`);
+        if (!heightRes.ok) return;
+        const heightData = await heightRes.json();
+        const height = parseInt(heightData.value || heightData, 10);
+        setBlockHeight(height);
+      } catch {}
+    }
+    fetchBlockHeight();
+  }, [program, endpointUrl, network, refreshing]);
+
+  // Unified refresh handler
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 500); // quick visual feedback
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -85,6 +118,9 @@ export default function AppPage() {
             zIndex: 1100,
           }}
         >
+          <Typography variant="h4" fontWeight={700} color="primary" mb={2} letterSpacing={2} sx={{ textTransform: 'lowercase' }}>
+            snorkle
+          </Typography>
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Oracle</InputLabel>
             <Select
@@ -97,9 +133,6 @@ export default function AppPage() {
               ))}
             </Select>
           </FormControl>
-          <Typography variant="h4" fontWeight={700} color="primary" mb={2} letterSpacing={2} sx={{ textTransform: 'lowercase' }}>
-            snorkle
-          </Typography>
           <Divider sx={{ mb: 2 }} />
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Dashboard</InputLabel>
@@ -148,11 +181,32 @@ export default function AppPage() {
               placeholder="https://your-endpoint.com"
             />
           )}
+          {/* Block Height Section */}
+          <Divider sx={{ my: 2 }} />
+          {blockHeight !== null && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, letterSpacing: 0.5 }}>
+                Current Height
+              </Typography>
+              <Typography variant="h6" color="primary" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                {blockHeight}
+              </Typography>
+            </Box>
+          )}
           <Divider sx={{ my: 2 }} />
         </Box>
         {/* Main Content */}
         <Box sx={{ flex: 1, minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', ml: '270px' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', p: 2, gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={refreshing ? <RefreshIcon sx={{ animation: 'spin 1s linear infinite' }} /> : <RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              sx={{ minWidth: 110 }}
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
             <IconButton sx={{ ml: 1 }} onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')} color="inherit">
               {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
             </IconButton>
@@ -164,6 +218,8 @@ export default function AppPage() {
                 endpointUrl={endpointUrl}
                 program={program}
                 mode={mode}
+                onRefresh={handleRefresh}
+                loading={refreshing}
               />
             )}
             {selectedDashboard === 'registry' && (
@@ -172,149 +228,13 @@ export default function AppPage() {
                 endpointUrl={endpointUrl}
                 program={program}
                 mode={mode}
+                onRefresh={handleRefresh}
+                loading={refreshing}
               />
             )}
           </Container>
         </Box>
       </Box>
     </ThemeProvider>
-  );
-}
-
-function EventsDashboard({ network, endpointUrl, program, mode }: { network: string; endpointUrl: string; program: string; mode: string }) {
-  const [numEvents, setNumEvents] = useState(10); // Configurable number of events
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [rawEntries, setRawEntries] = useState<any[]>([]);
-  const [refreshIndex, setRefreshIndex] = useState(0);
-
-  useEffect(() => {
-    if (!program || !endpointUrl) {
-      setRawEntries([]);
-      return;
-    }
-    let cancelled = false;
-    async function fetchEvents() {
-      setLoading(true);
-      setError(null);
-      try {
-        // 1. Fetch total_events[0u8] with correct URL structure
-        const totalEventsRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/total_events/0u8`);
-        if (!totalEventsRes.ok) throw new Error('Failed to fetch total_events');
-        const totalEventsData = await totalEventsRes.json();
-        const totalEvents = parseInt(totalEventsData.value || totalEventsData, 10);
-        if (isNaN(totalEvents) || totalEvents === 0) {
-          setRawEntries([]);
-          setLoading(false);
-          return;
-        }
-        // 2. Fetch last N event_ids
-        const startIdx = Math.max(0, totalEvents - numEvents);
-        const ids: string[] = [];
-        for (let i = startIdx; i < totalEvents; i++) {
-          const idRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/event_ids/${i}u128`);
-          if (!idRes.ok) throw new Error(`Failed to fetch event_id at index ${i}`);
-          const idData = await idRes.json();
-          ids.push(idData.value || idData);
-        }
-        // 3. Fetch each event
-        const eventEntries: any[] = [];
-        for (const id of ids) {
-          const eventRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/events/${id}`);
-          if (!eventRes.ok) throw new Error(`Failed to fetch event for id ${id}`);
-          const eventData = await eventRes.json();
-          eventEntries.push(eventData.value || eventData);
-        }
-        if (!cancelled) setRawEntries(eventEntries);
-      } catch (err: any) {
-        if (!cancelled) setError(err.message || 'Failed to fetch events');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchEvents();
-    return () => { cancelled = true; };
-  }, [program, endpointUrl, network, numEvents, refreshIndex]);
-
-  const handleRefresh = () => setRefreshIndex(idx => idx + 1);
-
-  return (
-    <Box>
-      <Typography variant="h5" fontWeight={600} mb={3}>Events Dashboard</Typography>
-      <Box display="flex" gap={2} mb={3} alignItems="center">
-        <TextField
-          size="small"
-          label="# of events"
-          type="number"
-          value={numEvents}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNumEvents(Math.max(1, Number(e.target.value)))}
-          sx={{ minWidth: 120 }}
-          inputProps={{ min: 1 }}
-        />
-        <Button
-          variant="outlined"
-          startIcon={loading ? <RefreshIcon sx={{ animation: 'spin 1s linear infinite' }} /> : <RefreshIcon />}
-          onClick={handleRefresh}
-          disabled={loading || !program}
-          sx={{ minWidth: 110 }}
-        >
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </Button>
-      </Box>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {loading ? (
-        <Alert severity="info">Loading events...</Alert>
-      ) : (
-        <DataTable entries={rawEntries} />
-      )}
-    </Box>
-  );
-}
-
-function RegistryDashboard({ network, endpointUrl, program, mode }: { network: string; endpointUrl: string; program: string; mode: string }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [oracles, setOracles] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (!program || !endpointUrl) {
-      setOracles([]);
-      return;
-    }
-    let cancelled = false;
-    async function fetchOracles() {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch all keys from registered_oracles mapping with correct URL structure
-        const res = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/registered_oracles/keys`);
-        if (!res.ok) throw new Error('Failed to fetch registered oracles');
-        const data = await res.json();
-        if (!cancelled) setOracles(data.keys || data);
-      } catch (err: any) {
-        if (!cancelled) setError(err.message || 'Failed to fetch oracles');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    fetchOracles();
-    return () => { cancelled = true; };
-  }, [program, endpointUrl, network]);
-
-  return (
-    <Box>
-      <Typography variant="h5" fontWeight={600} mb={3}>Registry Dashboard</Typography>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {loading ? (
-        <Alert severity="info">Loading registered oracles...</Alert>
-      ) : (
-        <Box>
-          <Typography variant="h6" mb={2}>Registered Oracles</Typography>
-          <Box sx={{ maxWidth: 600 }}>
-            <DataTable entries={oracles.map(addr => ({ key: addr, value: '' }))} />
-          </Box>
-        </Box>
-      )}
-    </Box>
   );
 }

@@ -201,4 +201,60 @@ export async function getMappingValue(
     console.error('Error getting mapping value:', error);
     throw new Error('Failed to get mapping value');
   }
+}
+
+// Interface for attestation verification result
+interface AttestationVerificationResult {
+  isValid: boolean;
+  oracleId?: string;
+  registrationTimestamp?: number;
+  validUntil?: number;
+  error?: string;
+}
+
+/**
+ * Verifies an attestation for a specific oracle
+ * @param programId - The program ID to check against
+ * @param oracleAddress - The oracle address to verify
+ * @param attestationHash - The attestation hash to verify
+ * @param network - The network to check on (mainnet/testnet/canary)
+ * @returns Promise<AttestationVerificationResult>
+ */
+export async function verifyAttestation(
+  programId: string,
+  oracleAddress: string,
+  attestationHash: string,
+  network: string
+): Promise<AttestationVerificationResult> {
+  try {
+    // Get the RPC URL based on the network
+    const rpcUrl = network === 'mainnet' 
+      ? 'https://api.explorer.provable.com/v1'
+      : network === 'testnet'
+      ? 'https://api.explorer.provable.com/v1'
+      : 'http://localhost:3030';
+
+    // Fetch oracle data directly using the address
+    const oracleRes = await fetch(`${rpcUrl}/${network}/program/${programId}/mapping/registered_oracles/${oracleAddress}`);
+    if (!oracleRes.ok) {
+      return { isValid: false, error: 'Oracle not found' };
+    }
+
+    const oracleData = await oracleRes.json();
+    const data = oracleData.value || oracleData;
+
+    // Check if attestation hash matches
+    if (data.attestation_hash === attestationHash) {
+      return {
+        isValid: true,
+        oracleId: oracleAddress,
+        registrationTimestamp: parseInt(data.registration_timestamp),
+        validUntil: parseInt(data.registration_timestamp) + 1000
+      };
+    }
+
+    return { isValid: false, error: 'Attestation hash does not match' };
+  } catch (error) {
+    return { isValid: false, error: 'Failed to verify attestation' };
+  }
 } 

@@ -1,4 +1,7 @@
 'use client';
+
+import { useState } from 'react';
+import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -6,97 +9,79 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
-import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import { MappingEntry } from '@/lib/types';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 interface DataTableProps {
-  entries: MappingEntry[];
-  isLoading?: boolean;
+  entries: Array<{
+    key: string;
+    value: any;
+  }>;
 }
 
-export function DataTable({ entries, isLoading = false }: DataTableProps) {
-  if (isLoading) {
-    return (
-      <Box sx={{ width: '100%', p: 6, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <CircularProgress color="primary" />
-        <Box mt={2}>
-          <span>Loading entries...</span>
-        </Box>
-      </Box>
-    );
-  }
+export function DataTable({ entries }: DataTableProps) {
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  if (entries.length === 0) {
-    return (
-      <Alert severity="info" sx={{ my: 4 }}>
-        No entries found. Try adjusting your search or filter criteria.
-      </Alert>
-    );
-  }
+  const toggleRow = (key: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key);
+    } else {
+      newExpanded.add(key);
+    }
+    setExpandedRows(newExpanded);
+  };
 
-  // Check if entries are event objects (oracle, timestamp, event_data)
-  const isEventTable = entries[0]?.value && typeof entries[0].value === 'object' &&
-    'oracle' in entries[0].value && 'timestamp' in entries[0].value && 'event_data' in entries[0].value;
+  const renderValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    return String(value);
+  };
 
-  if (isEventTable) {
-    return (
-      <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 1, my: 2 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 'bold' }}>Oracle</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Block Height</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Event ID</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Away Score</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Home Score</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {entries.map((entry) => {
-              const event = entry.value;
-              return (
-                <TableRow key={entry.key} hover>
-                  <TableCell>{event.oracle}</TableCell>
-                  <TableCell>{String(event.timestamp).replace(/u32$/, '')}</TableCell>
-                  <TableCell>{event.event_data?.id ? String(event.event_data.id).replace(/field$/, '') : ''}</TableCell>
-                  <TableCell>{event.event_data?.away_team_score ? String(event.event_data.away_team_score).replace(/u8$/, '') : ''}</TableCell>
-                  <TableCell>{event.event_data?.home_team_score ? String(event.event_data.home_team_score).replace(/u8$/, '') : ''}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    );
-  }
-
-  // Default rendering
   return (
-    <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 1, my: 2 }}>
+    <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 1 }}>
       <Table>
         <TableHead>
           <TableRow>
+            <TableCell sx={{ width: 50 }}></TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Key</TableCell>
             <TableCell sx={{ fontWeight: 'bold' }}>Value</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {entries.map((entry) => (
-            <TableRow key={entry.key} hover>
-              <TableCell component="th" scope="row">
-                {entry.key}
-              </TableCell>
-              <TableCell>
-                <pre style={{ margin: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {typeof entry.value === 'object'
-                    ? JSON.stringify(entry.value, null, 2)
-                    : String(entry.value)}
-                </pre>
-              </TableCell>
-            </TableRow>
-          ))}
+          {entries.map((entry) => {
+            const isExpanded = expandedRows.has(entry.key);
+            const value = renderValue(entry.value);
+            const isMultiline = value.includes('\n');
+
+            return (
+              <TableRow key={entry.key} hover>
+                <TableCell>
+                  {isMultiline && (
+                    <IconButton size="small" onClick={() => toggleRow(entry.key)}>
+                      {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  )}
+                </TableCell>
+                <TableCell>{entry.key}</TableCell>
+                <TableCell>
+                  {isMultiline ? (
+                    <Box>
+                      {isExpanded ? (
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{value}</pre>
+                      ) : (
+                        <Typography noWrap>{value.split('\n')[0]}</Typography>
+                      )}
+                    </Box>
+                  ) : (
+                    <Typography>{value}</Typography>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </TableContainer>

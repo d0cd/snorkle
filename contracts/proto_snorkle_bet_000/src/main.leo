@@ -3,7 +3,7 @@
 // The state is public.
 
 import credits.aleo;
-import proto_snorkle_oracle_000.aleo;
+import proto_snorkle_oracle_002.aleo;
 
 program proto_snorkle_bet_000.aleo {
 
