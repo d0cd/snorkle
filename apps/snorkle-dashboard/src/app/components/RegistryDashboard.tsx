@@ -25,6 +25,20 @@ interface RegistryDashboardProps {
   loading: boolean;
 }
 
+function sanitizeAleoMappingString(str: string): string {
+  // Add double quotes around keys
+  let json = str.replace(/([a-zA-Z0-9_]+):/g, '"$1":');
+  // Add double quotes around values that are not already quoted or numbers
+  json = json.replace(/: ([^",}{\[\]\s][^,}\]]*)/g, (match: string, p1: string) => {
+    // If value is a number with a suffix (e.g., 7578251u32), keep as string
+    if (/^[0-9]+u[0-9]+$/.test(p1) || /^[0-9]+$/.test(p1) || /field$/.test(p1)) {
+      return `: "${p1}"`;
+    }
+    return match;
+  });
+  return json;
+}
+
 export function RegistryDashboard({ network, endpointUrl, program, mode, onRefresh, loading }: RegistryDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [rawEntries, setRawEntries] = useState<any[]>([]);
@@ -50,13 +64,16 @@ export function RegistryDashboard({ network, endpointUrl, program, mode, onRefre
         if (!heightRes.ok) throw new Error('Failed to fetch current block height');
         const heightData = await heightRes.json();
         const height = parseInt(heightData.value || heightData, 10);
+        console.log('Current block height:', height);
         if (!cancelled) setCurrentBlockHeight(height);
 
         // 1. Fetch total_oracles[0u8] with correct URL structure
         const totalOraclesRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/total_oracles/0u8`);
         if (!totalOraclesRes.ok) throw new Error('Failed to fetch total_oracles');
         const totalOraclesData = await totalOraclesRes.json();
+        console.log('Raw total_oracles response:', totalOraclesData);
         const totalOracles = parseInt(totalOraclesData.value || totalOraclesData, 10);
+        console.log('Parsed total oracles:', totalOracles);
         if (isNaN(totalOracles) || totalOracles === 0) {
           setRawEntries([]);
           return;
@@ -65,28 +82,62 @@ export function RegistryDashboard({ network, endpointUrl, program, mode, onRefre
         // 2. Fetch oracle addresses (limited by numOracles)
         const oracleEntries: any[] = [];
         const startIdx = Math.max(0, totalOracles - numOracles);
+        console.log('Fetching oracles from index', startIdx, 'to', totalOracles - 1);
         for (let i = totalOracles - 1; i >= startIdx; i--) {
           const addrRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/registered_oracles_addresses/${i}u128`);
           if (!addrRes.ok) throw new Error(`Failed to fetch oracle address at index ${i}`);
           const addrData = await addrRes.json();
+          console.log(`Oracle address at index ${i}:`, addrData);
           const addr = addrData.value || addrData;
+          console.log('Parsed oracle address:', addr);
 
           // 3. Fetch oracle data for each address
           const oracleRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/registered_oracles/${addr}`);
           if (!oracleRes.ok) throw new Error(`Failed to fetch oracle data for address ${addr}`);
           const oracleData = await oracleRes.json();
-          const data = oracleData.value || oracleData;
-          oracleEntries.push({
-            ...data,
+          console.log('Raw oracle data:', oracleData);
+          let data = oracleData.value || oracleData;
+          let attestationHash = '';
+          let registrationTimestampRaw = '0u32';
+          if (typeof data === 'string') {
+            // Use regex to extract attestation_hash and registration_timestamp
+            const attMatch = data.match(/attestation_hash:\s*([^,\n}]*)/);
+            const regMatch = data.match(/registration_timestamp:\s*([^,\n}]*)/);
+            attestationHash = attMatch ? attMatch[1].trim() : '';
+            registrationTimestampRaw = regMatch ? regMatch[1].trim() : '0u32';
+          } else {
+            attestationHash = data.attestation_hash || '';
+            registrationTimestampRaw = data.registration_timestamp || '0u32';
+          }
+          console.log('Parsed oracle data:', data);
+          console.log('Attestation Hash:', attestationHash);
+          console.log('Registration Timestamp Raw:', registrationTimestampRaw);
+
+          const registrationTimestamp = typeof registrationTimestampRaw === 'string'
+            ? parseInt(registrationTimestampRaw.replace('u32', ''))
+            : Number(registrationTimestampRaw);
+          const validUntil = registrationTimestamp + 10000;
+
+          console.log('Final parsed values:', {
             oracle_id: addr,
-            valid_until: parseInt(data.registration_timestamp) + 1000
+            attestation_hash: attestationHash,
+            registration_timestamp: registrationTimestamp,
+            valid_until: validUntil
+          });
+          oracleEntries.push({
+            oracle_id: addr,
+            attestation_hash: attestationHash,
+            registration_timestamp: registrationTimestamp,
+            valid_until: validUntil
           });
         }
 
         if (!cancelled) {
+          console.log('Final oracle entries:', oracleEntries);
           setRawEntries(oracleEntries);
         }
       } catch (err: any) {
+        console.error('Error in fetchOracles:', err);
         if (!cancelled) setError(err.message || 'Failed to fetch oracles');
       }
     }
