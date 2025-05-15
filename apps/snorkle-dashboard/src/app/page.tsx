@@ -30,6 +30,7 @@ const ENDPOINTS = [
 ];
 const DASHBOARDS = [
   { id: 'events', name: 'Events' },
+  { id: 'registry', name: 'Registry' },
 ];
 
 export default function AppPage() {
@@ -38,6 +39,7 @@ export default function AppPage() {
   const [endpoint, setEndpoint] = useState(ENDPOINTS[0].value);
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [mode, setMode] = useState<'light' | 'dark'>('dark');
+  const [program, setProgram] = useState('proto_snorkle_oracle_001.aleo');
 
   // Get the actual endpoint URL
   const endpointObj = ENDPOINTS.find(e => e.value === endpoint);
@@ -52,6 +54,12 @@ export default function AppPage() {
       },
     },
   }), [mode]);
+
+  const programs = [
+    { id: 'proto_snorkle_oracle_001.aleo', name: 'proto_snorkle_oracle_001.aleo' },
+    { id: 'proto_snorkle_bet_000.aleo', name: 'proto_snorkle_bet_000.aleo' },
+    { id: 'proto_snorkle_oracle_000.aleo', name: 'proto_snorkle_oracle_000.aleo' },
+  ];
 
   return (
     <ThemeProvider theme={theme}>
@@ -77,6 +85,18 @@ export default function AppPage() {
             zIndex: 1100,
           }}
         >
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Oracle</InputLabel>
+            <Select
+              value={program}
+              label="Oracle"
+              onChange={(e: React.ChangeEvent<{ value: unknown }>) => setProgram(e.target.value as string)}
+            >
+              {programs.map(p => (
+                <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <Typography variant="h4" fontWeight={700} color="primary" mb={2} letterSpacing={2} sx={{ textTransform: 'lowercase' }}>
             snorkle
           </Typography>
@@ -128,6 +148,7 @@ export default function AppPage() {
               placeholder="https://your-endpoint.com"
             />
           )}
+          <Divider sx={{ my: 2 }} />
         </Box>
         {/* Main Content */}
         <Box sx={{ flex: 1, minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', ml: '270px' }}>
@@ -141,6 +162,15 @@ export default function AppPage() {
               <EventsDashboard
                 network={network}
                 endpointUrl={endpointUrl}
+                program={program}
+                mode={mode}
+              />
+            )}
+            {selectedDashboard === 'registry' && (
+              <RegistryDashboard
+                network={network}
+                endpointUrl={endpointUrl}
+                program={program}
                 mode={mode}
               />
             )}
@@ -151,21 +181,16 @@ export default function AppPage() {
   );
 }
 
-function EventsDashboard({ network, endpointUrl, mode }: { network: string; endpointUrl: string; mode: string }) {
-  const [program, setProgram] = useState('proto_snorkle_oracle_001.aleo');
+function EventsDashboard({ network, endpointUrl, program, mode }: { network: string; endpointUrl: string; program: string; mode: string }) {
   const [numEvents, setNumEvents] = useState(10); // Configurable number of events
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [entries, setEntries] = useState<any[]>([]);
-  const programs = [
-    { id: 'proto_snorkle_oracle_001.aleo', name: 'proto_snorkle_oracle_001.aleo' },
-    { id: 'proto_snorkle_bet_000.aleo', name: 'proto_snorkle_bet_000.aleo' },
-    { id: 'proto_snorkle_oracle_000.aleo', name: 'proto_snorkle_oracle_000.aleo' },
-  ];
+  const [rawEntries, setRawEntries] = useState<any[]>([]);
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     if (!program || !endpointUrl) {
-      setEntries([]);
+      setRawEntries([]);
       return;
     }
     let cancelled = false;
@@ -173,13 +198,13 @@ function EventsDashboard({ network, endpointUrl, mode }: { network: string; endp
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch total_events[0u8]
-        const totalEventsRes = await fetch(`${endpointUrl}/mapping/${program}/total_events/0u8`);
+        // 1. Fetch total_events[0u8] with correct URL structure
+        const totalEventsRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/total_events/0u8`);
         if (!totalEventsRes.ok) throw new Error('Failed to fetch total_events');
         const totalEventsData = await totalEventsRes.json();
         const totalEvents = parseInt(totalEventsData.value || totalEventsData, 10);
         if (isNaN(totalEvents) || totalEvents === 0) {
-          setEntries([]);
+          setRawEntries([]);
           setLoading(false);
           return;
         }
@@ -187,7 +212,7 @@ function EventsDashboard({ network, endpointUrl, mode }: { network: string; endp
         const startIdx = Math.max(0, totalEvents - numEvents);
         const ids: string[] = [];
         for (let i = startIdx; i < totalEvents; i++) {
-          const idRes = await fetch(`${endpointUrl}/mapping/${program}/event_ids/${i}u128`);
+          const idRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/event_ids/${i}u128`);
           if (!idRes.ok) throw new Error(`Failed to fetch event_id at index ${i}`);
           const idData = await idRes.json();
           ids.push(idData.value || idData);
@@ -195,12 +220,12 @@ function EventsDashboard({ network, endpointUrl, mode }: { network: string; endp
         // 3. Fetch each event
         const eventEntries: any[] = [];
         for (const id of ids) {
-          const eventRes = await fetch(`${endpointUrl}/mapping/${program}/events/${id}`);
+          const eventRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/events/${id}`);
           if (!eventRes.ok) throw new Error(`Failed to fetch event for id ${id}`);
           const eventData = await eventRes.json();
-          eventEntries.push({ key: id, value: eventData.value || eventData });
+          eventEntries.push(eventData.value || eventData);
         }
-        if (!cancelled) setEntries(eventEntries);
+        if (!cancelled) setRawEntries(eventEntries);
       } catch (err: any) {
         if (!cancelled) setError(err.message || 'Failed to fetch events');
       } finally {
@@ -209,40 +234,86 @@ function EventsDashboard({ network, endpointUrl, mode }: { network: string; endp
     }
     fetchEvents();
     return () => { cancelled = true; };
-  }, [program, endpointUrl, numEvents]);
+  }, [program, endpointUrl, network, numEvents, refreshIndex]);
+
+  const handleRefresh = () => setRefreshIndex(idx => idx + 1);
 
   return (
     <Box>
-      <Box display="flex" gap={2} mb={3}>
-        <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Program</InputLabel>
-          <Select
-            value={program}
-            label="Program"
-            onChange={(e: React.ChangeEvent<{ value: unknown }>) => setProgram(e.target.value as string)}
-          >
-            {programs.map(p => (
-              <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      <Typography variant="h5" fontWeight={600} mb={3}>Events Dashboard</Typography>
+      <Box display="flex" gap={2} mb={3} alignItems="center">
         <TextField
           size="small"
           label="# of events"
           type="number"
           value={numEvents}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNumEvents(Math.max(1, Number(e.target.value)))}
-          sx={{ minWidth: 200 }}
+          sx={{ minWidth: 120 }}
           inputProps={{ min: 1 }}
         />
+        <Button
+          variant="outlined"
+          startIcon={loading ? <RefreshIcon sx={{ animation: 'spin 1s linear infinite' }} /> : <RefreshIcon />}
+          onClick={handleRefresh}
+          disabled={loading || !program}
+          sx={{ minWidth: 110 }}
+        >
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </Button>
       </Box>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {(!program) ? (
-        <Alert severity="info">Please select an oracle to view its events.</Alert>
-      ) : loading ? (
+      {loading ? (
         <Alert severity="info">Loading events...</Alert>
       ) : (
-        <DataTable entries={entries} />
+        <DataTable entries={rawEntries} />
+      )}
+    </Box>
+  );
+}
+
+function RegistryDashboard({ network, endpointUrl, program, mode }: { network: string; endpointUrl: string; program: string; mode: string }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [oracles, setOracles] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!program || !endpointUrl) {
+      setOracles([]);
+      return;
+    }
+    let cancelled = false;
+    async function fetchOracles() {
+      setLoading(true);
+      setError(null);
+      try {
+        // Fetch all keys from registered_oracles mapping with correct URL structure
+        const res = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/registered_oracles/keys`);
+        if (!res.ok) throw new Error('Failed to fetch registered oracles');
+        const data = await res.json();
+        if (!cancelled) setOracles(data.keys || data);
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || 'Failed to fetch oracles');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchOracles();
+    return () => { cancelled = true; };
+  }, [program, endpointUrl, network]);
+
+  return (
+    <Box>
+      <Typography variant="h5" fontWeight={600} mb={3}>Registry Dashboard</Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {loading ? (
+        <Alert severity="info">Loading registered oracles...</Alert>
+      ) : (
+        <Box>
+          <Typography variant="h6" mb={2}>Registered Oracles</Typography>
+          <Box sx={{ maxWidth: 600 }}>
+            <DataTable entries={oracles.map(addr => ({ key: addr, value: '' }))} />
+          </Box>
+        </Box>
       )}
     </Box>
   );

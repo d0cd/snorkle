@@ -36,6 +36,43 @@ export function DataTable({ entries, isLoading = false }: DataTableProps) {
     );
   }
 
+  // Check if entries are event objects (oracle, timestamp, event_data)
+  const isEventTable = entries[0]?.value && typeof entries[0].value === 'object' &&
+    'oracle' in entries[0].value && 'timestamp' in entries[0].value && 'event_data' in entries[0].value;
+
+  if (isEventTable) {
+    return (
+      <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 1, my: 2 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 'bold' }}>Oracle</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Block Height</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Event ID</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Away Score</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Home Score</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {entries.map((entry) => {
+              const event = entry.value;
+              return (
+                <TableRow key={entry.key} hover>
+                  <TableCell>{event.oracle}</TableCell>
+                  <TableCell>{String(event.timestamp).replace(/u32$/, '')}</TableCell>
+                  <TableCell>{event.event_data?.id ? String(event.event_data.id).replace(/field$/, '') : ''}</TableCell>
+                  <TableCell>{event.event_data?.away_team_score ? String(event.event_data.away_team_score).replace(/u8$/, '') : ''}</TableCell>
+                  <TableCell>{event.event_data?.home_team_score ? String(event.event_data.home_team_score).replace(/u8$/, '') : ''}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  }
+
+  // Default rendering
   return (
     <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 1, my: 2 }}>
       <Table>

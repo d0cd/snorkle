@@ -1,0 +1,10 @@
+[package]
+name = "generate_oracle_submission"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies.snarkvm]
+version = "1.6.0"
+
+[dependencies.rand_core]
+version = "0.6.4"
