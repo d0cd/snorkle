@@ -76,6 +76,7 @@ program proto_snorkle_oracle_002.aleo {
             total_oracles.set(0u8, current_total_oracles + 1u128);
         }
 
+        // Now add the oracle data to the `registered_oracles` mapping. Overwrite the old data to update the timestamp.
         registered_oracles.set(oracle_id, OracleData {
             attestation_hash,
             registration_timestamp: block.height,
