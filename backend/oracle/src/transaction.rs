@@ -2,56 +2,64 @@ use std::str::FromStr;
 
 use rand::rngs::OsRng;
 
+use anyhow::Context;
+
 use snarkvm::ledger::store::helpers::memory::ConsensusMemory;
 use snarkvm::prelude::store::ConsensusStore;
-use snarkvm::prelude::{Network, PrivateKey, Program, Transaction, VM, Value};
+use snarkvm::prelude::*;
 
 use snorkle_oracle_interface::GameData;
 
+use super::Oracle;
+
 /// Generates a transaction for the oracle's private key, event ID, and game data.
-pub fn generate_transaction<N: Network>(
-    private_key: &PrivateKey<N>,
-    game_data: GameData,
-) -> Transaction<N> {
-    // Create the game data.
-    let game_data = Value::<N>::from_str(&format!(
-        r"
+impl<N: Network> Oracle<N> {
+    pub fn init_program() -> Program<N> {
+        Program::<N>::from_str(include_str!(
+            "../../resources/proto_snorkle_oracle_001.aleo"
+        ))
+        .expect("Failed to create the program")
+    }
+
+    pub fn generate_transaction(&self, game_data: GameData) -> anyhow::Result<Transaction<N>> {
+        // Create the game data.
+        let data_str = format!(
+            r"
 {{
     id: {},
-    home_team_score: {},
-    away_team_score: {},
+    home_team_score: {}u8,
+    away_team_score: {}u8
 }}",
-        game_data.event_id, game_data.home_score, game_data.away_score
-    ))
-    .expect("Failed to create game data");
+            game_data.event_id, game_data.home_score, game_data.away_score
+        );
 
-    // Initialize the program.
-    let program = Program::<N>::from_str(include_str!(
-        "../../resources/proto_snorkle_oracle_001.aleo"
-    ))
-    .expect("Failed to create the program");
+        let game_data = Value::<N>::from_str(&data_str).expect("Failed to create game data");
 
-    // Initialize a VM.
-    let vm = VM::<N, ConsensusMemory<N>>::from(
-        ConsensusStore::open(0).expect("Failed to initialize the consensus store"),
-    )
-    .expect("Failed to initialize the VM");
+        let signature = self.key.sign(&game_data.to_fields()?, &mut OsRng)?;
+        let signature = Value::<N>::from_str(&signature.to_string())?;
 
-    // Add the oracle program to the process.
-    vm.process()
-        .write()
-        .add_program(&program)
-        .expect("Failed to add program");
+        // Initialize a VM.
+        let vm = VM::<N, ConsensusMemory<N>>::from(
+            ConsensusStore::open(0).expect("Failed to initialize the consensus store"),
+        )
+        .expect("Failed to initialize the VM");
 
-    // Create the transaction.
-    vm.execute(
-        private_key,
-        (program.id(), "submit_event"),
-        [game_data].into_iter(),
-        None,
-        0,
-        None,
-        &mut OsRng,
-    )
-    .expect("Failed to create a transaction")
+        // Add the oracle program to the process.
+        vm.process()
+            .write()
+            .add_program(&self.program)
+            .expect("Failed to add program");
+
+        // Create the transaction.
+        vm.execute(
+            &self.key,
+            (self.program.id(), "submit_event"),
+            [game_data, signature].into_iter(),
+            None,
+            0,
+            None,
+            &mut OsRng,
+        )
+        .with_context(|| "Failed to create a transaction")
+    }
 }

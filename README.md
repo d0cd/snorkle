@@ -24,6 +24,9 @@ To set it up, run:
 
 ## Oracle Setup
 
+### Dummy Version
+The oracle should compile fine on macOS as well and will simply not generate a report.
+
 ### Intel TDX
 To run the oracle in an enclave based on Intel's Trusted Domain Extensions (TDX), you need a TDX-enabled virtual machine.
 Follow the description [here](https://cloud.google.com/confidential-computing/docs/confidential-computing-overview) and pick Ubuntu 24.04 as your image to create such a VM on Google Cloud.

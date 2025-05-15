@@ -8,6 +8,7 @@ snorkle-oracle-interface = { path="../interface" }
 bincode = { workspace=true }
 anyhow = "1"
 bytes = "1"
+serde_json = "1"
 ureq = { version = "3", features = ["json"] }
 rand = "0.8"
 tokio-util = { workspace=true, features=["codec"] }

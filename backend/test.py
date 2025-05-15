@@ -4,9 +4,16 @@ from time import sleep
 
 from subprocess import Popen
 
-oracle = Popen(["snorkle-oracle"])
+from sys import argv
+
+if len(argv) > 1:
+    path = argv[1] + "/"
+else:
+    path = ""
+
+oracle = Popen([path+"snorkle-oracle"])
 sleep(2)
-frontend = Popen(["snorkle-frontend"])
+frontend = Popen([path+"snorkle-gateway"])
 
 print("Waiting for Ctrl+C")
 while True:

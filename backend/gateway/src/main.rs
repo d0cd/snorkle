@@ -44,11 +44,12 @@ impl Gateway {
         (StatusCode::OK, Html(response))
     }
 
+    /// Generate a new witness/statement through the oracle
     async fn update_handler(
         &self,
         _payload: Json<UpdateRequest>,
     ) -> Result<Html<&'static str>, StatusCode> {
-        let _txn = match self.oracle.generate_witness().await {
+        let txn_str = match self.oracle.generate_witness().await {
             Ok(txn) => txn,
             Err(err) => {
                 log::error!("Got error: {err}");
@@ -56,8 +57,33 @@ impl Gateway {
             }
         };
 
-        //TODO send transaction
+        log::info!("Issuing new update transaction");
+        self.issue_transaction(txn_str).await
+    }
 
+    /// Broadcast a transaction to the Aleo network
+    async fn issue_transaction(
+        &self,
+        txn: String,
+    ) -> Result<Html<&'static str>, StatusCode> {
+        log::debug!(
+            "Issuing transaction: {}",
+            serde_json::to_string(&txn).unwrap()
+        );
+
+        let api_client = reqwest::Client::new();
+        if let Err(err) = api_client
+            .post("https://api.explorer.provable.com/v1/testnet/transaction/broadcast")
+            .body(txn)
+            .header("Content-Type", "application/json")
+            .send()
+            .await
+        {
+            log::error!("Got error: {err}");
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+
+        log::debug!("Successfully sent new transaction");
         Ok(Html("success!"))
     }
 }

@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use snarkvm::prelude::{TestnetV0, Transaction};
-
 pub const ORACLE_PORT: u16 = 54541;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -25,7 +23,8 @@ pub enum OracleRequest {
 
 #[derive(Serialize, Deserialize)]
 pub enum OracleResponse {
-    Witness(Box<Transaction<TestnetV0>>),
+    /// Contains the JSON-serialized transaction as a string
+    Witness(String),
     OracleInfo(OracleInfo),
 }
 

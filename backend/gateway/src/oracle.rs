@@ -11,8 +11,6 @@ use snorkle_oracle_interface::{
     BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse,
 };
 
-use snarkvm::prelude::{TestnetV0, Transaction};
-
 use bincode::serde::{decode_from_slice, encode_to_vec};
 
 /// Maintains a connection to the oracle
@@ -44,15 +42,15 @@ impl Oracle {
         Ok(info)
     }
 
-    pub async fn generate_witness(&self) -> anyhow::Result<Transaction<TestnetV0>> {
+    pub async fn generate_witness(&self) -> anyhow::Result<String> {
         let msg = OracleRequest::GenerateWitness;
         let response = self.issue_request(msg).await?;
 
-        let OracleResponse::Witness(txn) = response else {
+        let OracleResponse::Witness(txn_str) = response else {
             anyhow::bail!("Got invalid response");
         };
 
-        Ok(Box::into_inner(txn))
+        Ok(txn_str)
     }
 
     async fn issue_request(&self, msg: OracleRequest) -> anyhow::Result<OracleResponse> {
