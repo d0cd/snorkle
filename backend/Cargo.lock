@@ -180,9 +180,9 @@ dependencies = [
 
 [[package]]
 name = "bitflags"
-version = "2.9.0"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
+checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "block-buffer"
@@ -1531,7 +1531,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"
 
 [[package]]
-name = "snorkle-frontend"
+name = "snorkle-gateway"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1542,7 +1542,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
- "snorkle-oracle-api",
+ "snorkle-oracle-interface",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -1566,13 +1566,13 @@ dependencies = [
  "sgx_types",
  "sgx_urts",
  "sha2",
- "snorkle-oracle-api",
+ "snorkle-oracle-interface",
  "tokio-util",
  "ureq",
 ]
 
 [[package]]
-name = "snorkle-oracle-api"
+name = "snorkle-oracle-interface"
 version = "0.1.0"
 dependencies = [
  "bincode",

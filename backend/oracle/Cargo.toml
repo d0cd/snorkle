@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-snorkle-oracle-api = { path="../oracle-api" }
+snorkle-oracle-interface = { path="../interface" }
 bincode = { workspace=true }
 anyhow = "1"
 bytes = "1"

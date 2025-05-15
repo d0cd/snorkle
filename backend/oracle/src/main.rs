@@ -19,7 +19,7 @@ use ureq::unversioned::transport::DefaultConnector;
 
 use anyhow::Context;
 
-use snorkle_oracle_api::{OracleInfo, OracleRequest, OracleResponse, BINCODE_CONFIG};
+use snorkle_oracle_interface::{OracleInfo, OracleRequest, OracleResponse, BINCODE_CONFIG};
 
 mod http;
 use http::Resolver;
@@ -37,8 +37,6 @@ use tdx_guest as tdx;
 
 #[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
 use {ecdsa::SigningKey, p256::SecretKey};
-
-use sha2::{Digest, Sha256};
 
 use rand::rngs::OsRng;
 
@@ -104,7 +102,7 @@ impl Oracle {
     pub fn run(&self) -> anyhow::Result<()> {
         let addr = SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::UNSPECIFIED,
-            snorkle_oracle_api::ORACLE_PORT,
+            snorkle_oracle_interface::ORACLE_PORT,
         ));
         let listener = TcpListener::bind(addr).with_context(|| "Failed to bind API port")?;
 

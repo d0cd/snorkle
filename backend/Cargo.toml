@@ -1,6 +1,6 @@
 [workspace]
 resolver = "1"
-members = ["oracle", "frontend", "oracle-api"]
+members = ["oracle", "gateway", "interface"]
 
 [workspace.dependencies]
 bincode = { version="2", features=["serde"] }

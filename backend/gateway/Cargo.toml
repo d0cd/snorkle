@@ -1,5 +1,5 @@
 [package]
-name = "snorkle-frontend"
+name = "snorkle-gateway"
 version = "0.1.0"
 edition = "2024"
 
@@ -10,7 +10,7 @@ serde = { workspace=true }
 serde_json = "1"
 anyhow = "1"
 bincode = { workspace=true }
-snorkle-oracle-api = { path="../oracle-api" }
+snorkle-oracle-interface = { path="../interface" }
 tokio-util = { workspace=true, features=["codec"] }
 futures = { workspace=true }
 tokio-stream = "0.1"

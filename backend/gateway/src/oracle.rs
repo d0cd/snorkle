@@ -7,7 +7,7 @@ use anyhow::Context;
 
 use futures::sink::SinkExt;
 
-use snorkle_oracle_api::{BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse};
+use snorkle_oracle_interface::{BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse};
 
 use bincode::serde::{decode_from_slice, encode_to_vec};
 
