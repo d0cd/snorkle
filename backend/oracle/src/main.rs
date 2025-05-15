@@ -19,10 +19,18 @@ use ureq::unversioned::transport::DefaultConnector;
 use anyhow::Context;
 
 use snorkle_oracle_interface::{
-    GameData, OracleInfo, OracleRequest, OracleResponse, BINCODE_CONFIG,
+    BINCODE_CONFIG, GameData, OracleInfo, OracleRequest, OracleResponse,
 };
 
-use snarkvm::prelude::{TestnetV0, Transaction};
+#[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
+mod tdx;
+
+mod transaction;
+use transaction::generate_transaction;
+
+use base64::prelude::*;
+
+use snarkvm::prelude::{Address, FromStr, PrivateKey, TestnetV0, Transaction};
 
 mod http;
 use http::Resolver;
@@ -35,27 +43,15 @@ use sgx_crypto::{
     types::*,
 };
 
-use rand::rngs::OsRng;
-
-use schnorrkel::Keypair;
-
 fn main() -> anyhow::Result<()> {
     let oracle = Oracle::new()?;
     oracle.run()
 }
 
 struct Oracle {
-    keypair: Keypair,
+    key: PrivateKey<TestnetV0>,
     info: OracleInfo,
 }
-
-#[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
-mod tdx;
-
-mod transaction;
-use transaction::generate_transaction;
-
-use base64::prelude::*;
 
 impl Oracle {
     #[cfg(target_env = "sgx")]
@@ -65,19 +61,24 @@ impl Oracle {
 
     #[cfg(all(not(target_arch = "x86_64"), not(target_env = "sgx")))]
     pub fn new() -> anyhow::Result<Self> {
-        let keypair: Keypair = Keypair::generate_with(OsRng);
-        let pubkey = keypair.public.as_compressed();
+        const DEVNET_PRIVATE_KEY: &str =
+            "APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH";
 
-        let key_hash = BASE64_STANDARD.encode(pubkey.as_bytes());
+        // Create the private key.
+        let private_key = PrivateKey::<TestnetV0>::from_str(DEVNET_PRIVATE_KEY)
+            .expect("Failed to initialize private key");
+
+        let address = Address::<TestnetV0>::try_from(&private_key)?;
+
         let report = BASE64_STANDARD.encode("Hello World");
 
         println!("Created dummy oracle!");
         Ok(Self {
             info: OracleInfo {
-                pubkey: key_hash,
+                address: address.to_string(),
                 report,
             },
-            keypair,
+            key: private_key,
         })
     }
 
@@ -159,30 +160,6 @@ impl Oracle {
         }
     }
 
-    fn sign(&self, statement: &str) -> Vec<u8> {
-        #[cfg(target_env = "sgx")]
-        {
-            let hash = {
-                let mut hasher = Sha256::new();
-                hasher.update(statement.as_bytes());
-                hasher.finalize()
-            };
-
-            // Use enclave's private key
-            let ecc_handle = EccHandle::new()?;
-            let private_key = ecc_handle.get_private_key()?;
-            ecc_handle.ecdsa_sign_slice(&hash, &private_key)?
-        }
-
-        #[cfg(not(target_env = "sgx"))]
-        {
-            let signature = self
-                .keypair
-                .sign_simple("oracle statment".as_bytes(), statement.as_bytes());
-            signature.to_bytes().to_vec()
-        }
-    }
-
     fn generate_witness(&self) -> anyhow::Result<Transaction<TestnetV0>> {
         let config = Config::builder().build();
         let resolver = Resolver::new();
@@ -201,10 +178,8 @@ impl Oracle {
 
         // Generate hash of the body
         let body = response.body_mut().read_to_string()?;
-        // Sign the hash
-        let signature = self.sign(&body);
 
-        let txn = generate_transaction(mock_data);
+        let txn = generate_transaction(&self.key, mock_data);
         Ok(txn)
     }
 }

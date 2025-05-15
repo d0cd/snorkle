@@ -4,18 +4,15 @@ use rand::rngs::OsRng;
 
 use snarkvm::ledger::store::helpers::memory::ConsensusMemory;
 use snarkvm::prelude::store::ConsensusStore;
-use snarkvm::prelude::{Network, PrivateKey, Program, Transaction, Value, VM};
+use snarkvm::prelude::{Network, PrivateKey, Program, Transaction, VM, Value};
 
 use snorkle_oracle_interface::GameData;
 
 /// Generates a transaction for the oracle's private key, event ID, and game data.
-pub fn generate_transaction<N: Network>(game_data: GameData) -> Transaction<N> {
-    let private_key = ""; //TODO
-
-    // Create the private key.
-    let private_key =
-        PrivateKey::<N>::from_str(private_key).expect("Failed to initialize private key");
-
+pub fn generate_transaction<N: Network>(
+    private_key: &PrivateKey<N>,
+    game_data: GameData,
+) -> Transaction<N> {
     // Create the game data.
     let game_data = Value::<N>::from_str(&format!(
         r"
@@ -48,7 +45,7 @@ pub fn generate_transaction<N: Network>(game_data: GameData) -> Transaction<N> {
 
     // Create the transaction.
     vm.execute(
-        &private_key,
+        private_key,
         (program.id(), "submit_event"),
         [game_data].into_iter(),
         None,

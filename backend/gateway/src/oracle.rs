@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
@@ -13,7 +11,7 @@ use snorkle_oracle_interface::{
     BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse,
 };
 
-use snarkvm::prelude::{Transaction,TestnetV0};
+use snarkvm::prelude::{TestnetV0, Transaction};
 
 use bincode::serde::{decode_from_slice, encode_to_vec};
 
@@ -55,8 +53,7 @@ impl Oracle {
         };
 
         Ok(Box::into_inner(txn))
-        
-           }
+    }
 
     async fn issue_request(&self, msg: OracleRequest) -> anyhow::Result<OracleResponse> {
         let data = encode_to_vec(&msg, BINCODE_CONFIG)?;

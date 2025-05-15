@@ -13,7 +13,7 @@ pub struct GameData {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct OracleInfo {
-    pub pubkey: String,
+    pub address: String,
     pub report: String,
 }
 
