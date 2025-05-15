@@ -5,6 +5,12 @@ snark-friendly oracles on aleo
 
 The live dashboard for the oracle can be found here: https://snorkle-dashboard-349861721231.northamerica-northeast1.run.app/
 
+Instructions to run the oracle service is here: https://github.com/d0cd/snorkle/tree/main/backend#readme
+
+The mock sports API is here: scores-api-349861721231.northamerica-northeast1.run.app
+And can be queried with: `curl -s https://scores-api-349861721231.northamerica-northeast1.run.app/teams | jq '.'`
+
+
 
 ## Leo
 
