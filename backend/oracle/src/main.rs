@@ -157,9 +157,11 @@ impl<N: Network> Oracle<N> {
     /// Generate a new transaction that contains the game's score
     fn generate_submission(&self, game_id: String) -> anyhow::Result<(GameData, Transaction<N>)> {
         let (home, away) = self.fetch_scores(&game_id)?;
+        let uid: u128 = rand::random();
+        let event_id = format!("{game_id}_{uid}");
 
         let game_data = GameData {
-            event_id: self.hash(game_id.as_bytes())?,
+            event_id: self.hash(event_id.as_bytes())?,
             home_score: home,
             away_score: away,
         };
