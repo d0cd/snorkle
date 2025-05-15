@@ -17,6 +17,14 @@ import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { DataTable } from './components/DataTable';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import TableContainer from '@mui/material/TableContainer';
+import Table from '@mui/material/Table';
+import TableHead from '@mui/material/TableHead';
+import TableBody from '@mui/material/TableBody';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
+import Paper from '@mui/material/Paper';
+import Snackbar from '@mui/material/Snackbar';
 
 const NETWORKS = [
   { label: 'mainnet', value: 'mainnet' },
@@ -40,6 +48,8 @@ export default function AppPage() {
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [mode, setMode] = useState<'light' | 'dark'>('dark');
   const [program, setProgram] = useState('proto_snorkle_oracle_001.aleo');
+  const [blockHeight, setBlockHeight] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Get the actual endpoint URL
   const endpointObj = ENDPOINTS.find(e => e.value === endpoint);
@@ -60,6 +70,27 @@ export default function AppPage() {
     { id: 'proto_snorkle_bet_000.aleo', name: 'proto_snorkle_bet_000.aleo' },
     { id: 'proto_snorkle_oracle_000.aleo', name: 'proto_snorkle_oracle_000.aleo' },
   ];
+
+  // Fetch block height for sidebar
+  useEffect(() => {
+    async function fetchBlockHeight() {
+      if (!program || !endpointUrl) return;
+      try {
+        const heightRes = await fetch(`${endpointUrl}/${network}/block/height/latest`);
+        if (!heightRes.ok) return;
+        const heightData = await heightRes.json();
+        const height = parseInt(heightData.value || heightData, 10);
+        setBlockHeight(height);
+      } catch {}
+    }
+    fetchBlockHeight();
+  }, [program, endpointUrl, network, refreshing]);
+
+  // Unified refresh handler
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 500); // quick visual feedback
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -148,11 +179,32 @@ export default function AppPage() {
               placeholder="https://your-endpoint.com"
             />
           )}
+          {/* Block Height Section */}
+          <Divider sx={{ my: 2 }} />
+          {blockHeight !== null && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, letterSpacing: 0.5 }}>
+                Current Height
+              </Typography>
+              <Typography variant="h6" color="primary" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                {blockHeight}
+              </Typography>
+            </Box>
+          )}
           <Divider sx={{ my: 2 }} />
         </Box>
         {/* Main Content */}
         <Box sx={{ flex: 1, minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column', ml: '270px' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', p: 2, gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={refreshing ? <RefreshIcon sx={{ animation: 'spin 1s linear infinite' }} /> : <RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              sx={{ minWidth: 110 }}
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
             <IconButton sx={{ ml: 1 }} onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')} color="inherit">
               {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
             </IconButton>
@@ -164,6 +216,8 @@ export default function AppPage() {
                 endpointUrl={endpointUrl}
                 program={program}
                 mode={mode}
+                onRefresh={handleRefresh}
+                loading={refreshing}
               />
             )}
             {selectedDashboard === 'registry' && (
@@ -172,6 +226,8 @@ export default function AppPage() {
                 endpointUrl={endpointUrl}
                 program={program}
                 mode={mode}
+                onRefresh={handleRefresh}
+                loading={refreshing}
               />
             )}
           </Container>
@@ -193,12 +249,10 @@ function sanitizeToJson(str: string) {
   return JSON.parse(json);
 }
 
-function EventsDashboard({ network, endpointUrl, program, mode }: { network: string; endpointUrl: string; program: string; mode: string }) {
+function EventsDashboard({ network, endpointUrl, program, mode, onRefresh, loading }: { network: string; endpointUrl: string; program: string; mode: string; onRefresh: () => void; loading: boolean }) {
   const [numEvents, setNumEvents] = useState(10); // Configurable number of events
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rawEntries, setRawEntries] = useState<any[]>([]);
-  const [refreshIndex, setRefreshIndex] = useState(0);
 
   useEffect(() => {
     if (!program || !endpointUrl) {
@@ -207,7 +261,6 @@ function EventsDashboard({ network, endpointUrl, program, mode }: { network: str
     }
     let cancelled = false;
     async function fetchEvents() {
-      setLoading(true);
       setError(null);
       try {
         // 1. Fetch total_events[0u8] with correct URL structure
@@ -217,7 +270,6 @@ function EventsDashboard({ network, endpointUrl, program, mode }: { network: str
         const totalEvents = parseInt(totalEventsData.value || totalEventsData, 10);
         if (isNaN(totalEvents) || totalEvents === 0) {
           setRawEntries([]);
-          setLoading(false);
           return;
         }
         // 2. Fetch last N event_ids
@@ -245,19 +297,15 @@ function EventsDashboard({ network, endpointUrl, program, mode }: { network: str
         }
       } catch (err: any) {
         if (!cancelled) setError(err.message || 'Failed to fetch events');
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
     fetchEvents();
     return () => { cancelled = true; };
-  }, [program, endpointUrl, network, numEvents, refreshIndex]);
-
-  const handleRefresh = () => setRefreshIndex(idx => idx + 1);
+  }, [program, endpointUrl, network, numEvents, onRefresh]);
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={600} mb={3}>Events Dashboard</Typography>
+      <Typography variant="h4" fontWeight={700} mb={3}>Events</Typography>
       <Box display="flex" gap={2} mb={3} alignItems="center">
         <TextField
           size="small"
@@ -268,22 +316,13 @@ function EventsDashboard({ network, endpointUrl, program, mode }: { network: str
           sx={{ minWidth: 120 }}
           inputProps={{ min: 1 }}
         />
-        <Button
-          variant="outlined"
-          startIcon={loading ? <RefreshIcon sx={{ animation: 'spin 1s linear infinite' }} /> : <RefreshIcon />}
-          onClick={handleRefresh}
-          disabled={loading || !program}
-          sx={{ minWidth: 110 }}
-        >
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </Button>
       </Box>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Alert severity="info">Loading events...</Alert>
       ) : (
         <DataTable entries={rawEntries.map((event, idx) => ({
-          key: idx,
+          key: idx.toString(),
           value: typeof event === 'string' ? sanitizeToJson(event) : event
         }))} />
       )}
@@ -291,50 +330,138 @@ function EventsDashboard({ network, endpointUrl, program, mode }: { network: str
   );
 }
 
-function RegistryDashboard({ network, endpointUrl, program, mode }: { network: string; endpointUrl: string; program: string; mode: string }) {
-  const [loading, setLoading] = useState(false);
+function RegistryDashboard({ network, endpointUrl, program, mode, onRefresh, loading }: { network: string; endpointUrl: string; program: string; mode: string; onRefresh: () => void; loading: boolean }) {
   const [error, setError] = useState<string | null>(null);
-  const [oracles, setOracles] = useState<string[]>([]);
+  const [rawEntries, setRawEntries] = useState<any[]>([]);
+  const [currentBlockHeight, setCurrentBlockHeight] = useState<number | null>(null);
+  const [attestationInput, setAttestationInput] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
     if (!program || !endpointUrl) {
-      setOracles([]);
+      setRawEntries([]);
       return;
     }
     let cancelled = false;
     async function fetchOracles() {
-      setLoading(true);
       setError(null);
       try {
-        // Fetch all keys from registered_oracles mapping with correct URL structure
-        const res = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/registered_oracles/keys`);
-        if (!res.ok) throw new Error('Failed to fetch registered oracles');
-        const data = await res.json();
-        if (!cancelled) setOracles(data.keys || data);
+        // Fetch current block height
+        const heightRes = await fetch(`${endpointUrl}/${network}/block/height/latest`);
+        if (!heightRes.ok) throw new Error('Failed to fetch current block height');
+        const heightData = await heightRes.json();
+        const height = parseInt(heightData.value || heightData, 10);
+        if (!cancelled) setCurrentBlockHeight(height);
+
+        // 1. Fetch total_oracles[0u8] with correct URL structure
+        const totalOraclesRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/total_oracles/0u8`);
+        if (!totalOraclesRes.ok) throw new Error('Failed to fetch total_oracles');
+        const totalOraclesData = await totalOraclesRes.json();
+        const totalOracles = parseInt(totalOraclesData.value || totalOraclesData, 10);
+        if (isNaN(totalOracles) || totalOracles === 0) {
+          setRawEntries([]);
+          return;
+        }
+
+        // 2. Fetch all oracle addresses
+        const oracleEntries: any[] = [];
+        for (let i = 0; i < totalOracles; i++) {
+          const addrRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/registered_oracles_addresses/${i}u128`);
+          if (!addrRes.ok) throw new Error(`Failed to fetch oracle address at index ${i}`);
+          const addrData = await addrRes.json();
+          const addr = addrData.value || addrData;
+
+          // 3. Fetch oracle data for each address
+          const oracleRes = await fetch(`${endpointUrl}/${network}/program/${program}/mapping/registered_oracles/${addr}`);
+          if (!oracleRes.ok) throw new Error(`Failed to fetch oracle data for address ${addr}`);
+          const oracleData = await oracleRes.json();
+          const data = oracleData.value || oracleData;
+          oracleEntries.push({
+            ...data,
+            oracle_id: addr,
+            valid_until: parseInt(data.registration_timestamp) + 1000
+          });
+        }
+
+        if (!cancelled) {
+          setRawEntries(oracleEntries);
+        }
       } catch (err: any) {
         if (!cancelled) setError(err.message || 'Failed to fetch oracles');
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
     fetchOracles();
     return () => { cancelled = true; };
-  }, [program, endpointUrl, network]);
+  }, [program, endpointUrl, network, onRefresh]);
+
+  const handleAttestationCheck = () => {
+    setSnackbarOpen(true);
+  };
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={600} mb={3}>Registry Dashboard</Typography>
+      <Typography variant="h4" fontWeight={700} mb={3}>Registry</Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Alert severity="info">Loading registered oracles...</Alert>
       ) : (
-        <Box>
-          <Typography variant="h6" mb={2}>Registered Oracles</Typography>
-          <Box sx={{ maxWidth: 600 }}>
-            <DataTable entries={oracles.map(addr => ({ key: addr, value: '' }))} />
-          </Box>
-        </Box>
+        <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 1, my: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>Oracle ID</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Attestation Hash</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Registration Height</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Valid Until Block</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rawEntries.map((oracle, index) => {
+                const isExpired = currentBlockHeight !== null && oracle.valid_until < currentBlockHeight;
+                return (
+                  <TableRow 
+                    key={oracle.oracle_id} 
+                    hover
+                    sx={{ 
+                      opacity: isExpired ? 0.5 : 1,
+                      '&:hover': {
+                        opacity: isExpired ? 0.7 : 1
+                      }
+                    }}
+                  >
+                    <TableCell>{oracle.oracle_id}</TableCell>
+                    <TableCell>{oracle.attestation_hash}</TableCell>
+                    <TableCell>{oracle.registration_timestamp}</TableCell>
+                    <TableCell>{oracle.valid_until}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
+      {/* Check Attestation Widget */}
+      <Box mt={10} p={3} component={Paper} elevation={2} sx={{ maxWidth: 500, mx: 'auto', bgcolor: 'background.paper' }}>
+        <Typography variant="h6" mb={2}>Check Attestation</Typography>
+        <Box display="flex" gap={2} alignItems="center">
+          <TextField
+            label="Attestation (hex)"
+            variant="outlined"
+            size="small"
+            value={attestationInput}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAttestationInput(e.target.value)}
+            fullWidth
+          />
+          <Button variant="contained" onClick={handleAttestationCheck}>Verify</Button>
+        </Box>
+      </Box>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2000}
+        onClose={() => setSnackbarOpen(false)}
+        message="Not yet implemented"
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 }
