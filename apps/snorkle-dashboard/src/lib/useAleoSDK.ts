@@ -1,29 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import * as aleo from '@provablehq/sdk';
 
 export function useAleoSDK() {
-  const [sdk, setSdk] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [sdk, setSDK] = useState<any>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-    import('@aleohq/sdk')
-      .then((mod) => {
-        if (isMounted) {
-          setSdk(mod);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setError(err);
-          setLoading(false);
-        }
-      });
-    return () => {
-      isMounted = false;
+    const loadSDK = async () => {
+      try {
+        await aleo.initThreadPool();
+        setSDK(aleo);
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to load Aleo SDK'));
+        setLoading(false);
+      }
     };
+
+    loadSDK();
   }, []);
 
-  return [sdk, loading, error] as const;
+  return { sdk, error, loading };
 } 

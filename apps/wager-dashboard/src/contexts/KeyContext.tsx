@@ -1,110 +1,151 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { KeyPair, KeyStore } from '@/lib/types/key';
+'use client';
+
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { Key } from '@/lib/types';
+import { WagerError } from '@/lib/utils';
+import { useWasm } from '@/components/WasmProvider';
 
 interface KeyContextType {
-  keys: KeyPair[];
-  activeKey: KeyPair | null;
-  addKey: (key: KeyPair) => void;
-  removeKey: (name: string) => void;
-  selectKey: (name: string) => void;
+  keys: Key[];
+  selectedKey: Key | null;
   loading: boolean;
   error: string | null;
+  addKey: (privateKey: string) => Promise<void>;
+  removeKey: (address: string) => void;
+  selectKey: (address: string) => void;
+  getPrivateKey: (address: string) => any | null;
+  getViewKey: (address: string) => any | null;
 }
 
 const KeyContext = createContext<KeyContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'wager-dashboard-keys';
+const STORAGE_KEY = 'aleo_keys';
 
-export function KeyProvider({ children }: { children: ReactNode }) {
-  const [keys, setKeys] = useState<KeyPair[]>([]);
-  const [activeKey, setActiveKey] = useState<KeyPair | null>(null);
-  const [loading, setLoading] = useState(true);
+export const KeyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { sdk, isInitialized, error: sdkError } = useWasm();
+  const [keys, setKeys] = useState<Key[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  });
+  const [selectedKey, setSelectedKey] = useState<Key | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load keys from localStorage on mount
+  // Select first key by default if none is selected
   useEffect(() => {
+    if (!selectedKey && keys.length > 0) {
+      setSelectedKey(keys[0]);
+    }
+  }, [keys, selectedKey]);
+
+  const addKey = useCallback(async (privateKeyString: string) => {
+    if (!isInitialized || !sdk) {
+      throw new WagerError(sdkError?.message || 'SDK not initialized');
+    }
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const { keys: storedKeys, activeKeyName } = JSON.parse(stored) as KeyStore;
-        setKeys(storedKeys);
-        if (activeKeyName) {
-          const key = storedKeys.find(k => k.name === activeKeyName);
-          if (key) setActiveKey(key);
-        }
+      setLoading(true);
+      setError(null);
+
+      const privateKey = sdk.PrivateKey.from_string(privateKeyString);
+      const viewKey = sdk.ViewKey.from_private_key(privateKey);
+      const address = privateKey.to_address().to_string();
+
+      // Check if key already exists
+      if (keys.some(k => k.address === address)) {
+        throw new WagerError('Key already exists');
+      }
+
+      const newKey: Key = {
+        address,
+        privateKey: privateKeyString,
+        viewKey: viewKey.to_string(),
+      };
+
+      setKeys((prev) => {
+        const updated = [...prev, newKey];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        return updated;
+      });
+
+      if (!selectedKey) {
+        setSelectedKey(newKey);
       }
     } catch (err) {
-      setError('Failed to load keys from storage');
-      console.error('Failed to load keys:', err);
+      const message = err instanceof Error ? err.message : 'Invalid private key';
+      setError(message);
+      throw new WagerError(message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sdk, isInitialized, sdkError, selectedKey, keys]);
 
-  // Save keys to localStorage whenever they change
-  useEffect(() => {
-    if (!loading) {
-      try {
-        const store: KeyStore = {
-          keys,
-          activeKeyName: activeKey?.name || null,
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-      } catch (err) {
-        setError('Failed to save keys to storage');
-        console.error('Failed to save keys:', err);
+  const removeKey = useCallback((address: string) => {
+    setKeys((prev) => {
+      const updated = prev.filter((key) => key.address !== address);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      
+      if (selectedKey?.address === address) {
+        setSelectedKey(updated[0] || null);
       }
-    }
-  }, [keys, activeKey, loading]);
+      
+      return updated;
+    });
+  }, [selectedKey]);
 
-  const addKey = (key: KeyPair) => {
-    if (keys.some(k => k.name === key.name)) {
-      setError('A key with this name already exists');
-      return;
-    }
-    setKeys(prev => [...prev, key]);
-    setError(null);
-  };
-
-  const removeKey = (name: string) => {
-    setKeys(prev => prev.filter(k => k.name !== name));
-    if (activeKey?.name === name) {
-      setActiveKey(null);
-    }
-    setError(null);
-  };
-
-  const selectKey = (name: string) => {
-    const key = keys.find(k => k.name === name);
+  const selectKey = useCallback((address: string) => {
+    const key = keys.find((k) => k.address === address);
     if (key) {
-      setActiveKey(key);
-      setError(null);
-    } else {
-      setError('Key not found');
+      setSelectedKey(key);
     }
-  };
+  }, [keys]);
+
+  const getPrivateKey = useCallback((address: string) => {
+    if (!isInitialized || !sdk) return null;
+    const key = keys.find((k) => k.address === address);
+    if (!key) return null;
+    try {
+      return sdk.PrivateKey.from_string(key.privateKey);
+    } catch {
+      return null;
+    }
+  }, [keys, sdk, isInitialized]);
+
+  const getViewKey = useCallback((address: string) => {
+    if (!isInitialized || !sdk) return null;
+    const key = keys.find((k) => k.address === address);
+    if (!key) return null;
+    try {
+      return sdk.ViewKey.from_string(key.viewKey);
+    } catch {
+      return null;
+    }
+  }, [keys, sdk, isInitialized]);
 
   return (
     <KeyContext.Provider
       value={{
         keys,
-        activeKey,
+        selectedKey,
+        loading,
+        error,
         addKey,
         removeKey,
         selectKey,
-        loading,
-        error,
+        getPrivateKey,
+        getViewKey,
       }}
     >
       {children}
     </KeyContext.Provider>
   );
-}
+};
 
-export function useKeyContext() {
+export const useKeyContext = () => {
   const context = useContext(KeyContext);
   if (context === undefined) {
     throw new Error('useKeyContext must be used within a KeyProvider');
   }
   return context;
-} 
+}; 
