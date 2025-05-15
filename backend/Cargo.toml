@@ -9,3 +9,6 @@ tokio-util = "0.7"
 futures = "0.3"
 log = "0.4"
 snarkvm = { version="1.6" }
+
+[profile.release]
+opt-level = 3
