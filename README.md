@@ -20,3 +20,11 @@ To set it up, run:
 - Leo test fails if credits.aleo is a dependency
 - Leo CLI overhaul uses explorer as API default, default should be implemented in a different way.
 - Provable SDK create-leo-app tutorial links to the an old tutorial.
+
+
+## Oracle Setup
+
+### Intel TDX
+To run the oracle in an enclave based on Intel's Trusted Domain Extensions (TDX), you need a TDX-enabled virtual machine.
+Follow the description [here](https://cloud.google.com/confidential-computing/docs/confidential-computing-overview) and pick Ubuntu 24.04 as your image to create such a VM on Google Cloud.
+Finally, set up the `trustservices-cli` using [this guide](https://github.com/canonical/tdx?tab=readme-ov-file#9-perform-remote-attestation-using-intel-tiber-trust-services-cli), which the oracle will call.
