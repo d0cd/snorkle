@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub const ORACLE_PORT: u16 = 54541;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameData {
     pub event_id: String,
     pub away_score: u8,
@@ -17,15 +17,19 @@ pub struct OracleInfo {
 
 #[derive(Serialize, Deserialize)]
 pub enum OracleRequest {
-    GenerateSubmission,
+    GenerateSubmission { game_id: String },
     GetOracleInfo,
     GetRegistration,
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum OracleResponse {
-    /// Contains the JSON-serialized transaction as a string
-    Submission(String),
+    Submission {
+        /// The raw results
+        game_data: GameData,
+        /// The JSON-serialized transaction as a string
+        transaction: String,
+    },
     OracleInfo(OracleInfo),
     /// Contains the JSON-serialized transaction as a string
     Registration(String),

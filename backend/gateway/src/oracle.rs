@@ -8,7 +8,7 @@ use anyhow::Context;
 use futures::sink::SinkExt;
 
 use snorkle_oracle_interface::{
-    BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse,
+    BINCODE_CONFIG, GameData, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse,
 };
 
 use bincode::serde::{decode_from_slice, encode_to_vec};
@@ -42,15 +42,19 @@ impl Oracle {
         Ok(info)
     }
 
-    pub async fn generate_submission(&self) -> anyhow::Result<String> {
-        let msg = OracleRequest::GenerateSubmission;
+    pub async fn generate_submission(&self, game_id: String) -> anyhow::Result<(GameData, String)> {
+        let msg = OracleRequest::GenerateSubmission { game_id };
         let response = self.issue_request(msg).await?;
 
-        let OracleResponse::Submission(txn_str) = response else {
+        let OracleResponse::Submission {
+            transaction,
+            game_data,
+        } = response
+        else {
             anyhow::bail!("Got invalid response");
         };
 
-        Ok(txn_str)
+        Ok((game_data, transaction))
     }
 
     pub async fn generate_registration(&self) -> anyhow::Result<String> {

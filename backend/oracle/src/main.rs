@@ -113,29 +113,33 @@ impl<N: Network> Oracle<N> {
         }
     }
 
-    fn generate_registration(&self) -> anyhow::Result<Transaction<N>> {
-        let report = self.info.report.as_bytes();
-
-        let mut report_bits = Vec::with_capacity(report.len() * 8);
-        for byte in report {
+    fn hash(&self, bytes: &[u8]) -> anyhow::Result<String> {
+        let mut bits: Vec<bool> = Vec::with_capacity(bytes.len() * 8);
+        for byte in bytes {
             for i in (0..8).rev() {
-                report_bits.push((byte >> i) & 1 == 1);
+                bits.push((byte >> i) & 1 == 1);
             }
         }
 
         let hasher = &snarkvm::prelude::BHP_1024;
-        let attestation_hash = hasher.hash(&report_bits)?;
-        let hash_value = Value::<N>::from_str(&attestation_hash.to_string())?;
+        hasher.hash(&bits).map(|res| res.to_string())
+    }
+
+    fn generate_registration(&self) -> anyhow::Result<Transaction<N>> {
+        let report = self.info.report.as_bytes();
+        let attestation_hash = self.hash(report)?;
+
+        let hash_value = Value::<N>::from_str(&attestation_hash)?;
 
         self.generate_transaction("register", &[hash_value])
     }
 
     /// Generate a new transaction that contains the game's score
-    fn generate_submission(&self) -> anyhow::Result<Transaction<N>> {
-        let (home, away) = self.fetch_scores()?;
+    fn generate_submission(&self, game_id: String) -> anyhow::Result<(GameData, Transaction<N>)> {
+        let (home, away) = self.fetch_scores(&game_id)?;
 
         let game_data = GameData {
-            event_id: "0field".to_string(),
+            event_id: self.hash(game_id.as_bytes())?,
             home_score: home,
             away_score: away,
         };
@@ -151,12 +155,15 @@ impl<N: Network> Oracle<N> {
             game_data.event_id, game_data.home_score, game_data.away_score
         );
 
-        let game_data = Value::<N>::from_str(&data_str).expect("Failed to create game data");
+        let game_data_value = Value::<N>::from_str(&data_str).expect("Failed to create game data");
 
-        let signature = self.key.sign(&game_data.to_fields()?, &mut OsRng)?;
+        let signature = self.key.sign(&game_data_value.to_fields()?, &mut OsRng)?;
         let signature = Value::<N>::from_str(&signature.to_string())?;
 
-        self.generate_transaction("submit_event", &[game_data, signature])
+        Ok((
+            game_data,
+            self.generate_transaction("submit_event", &[game_data_value, signature])?,
+        ))
     }
 }
 

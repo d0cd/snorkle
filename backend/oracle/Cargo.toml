@@ -13,6 +13,7 @@ ureq = { version = "3", features = ["json"] }
 rand = "0.8"
 tokio-util = { workspace=true, features=["codec"] }
 snarkvm = {workspace=true }
+serde = "1"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 base64 = "0.22"

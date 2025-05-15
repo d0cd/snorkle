@@ -3341,6 +3341,7 @@ dependencies = [
  "bincode 2.0.1",
  "bytes",
  "rand",
+ "serde",
  "serde_json",
  "sgx_tcrypto",
  "sgx_tstd",

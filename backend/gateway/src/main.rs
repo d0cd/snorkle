@@ -17,8 +17,14 @@ mod oracle;
 use oracle::Oracle;
 
 #[derive(Debug, Serialize, Deserialize)]
-struct UpdateRequest {
-    service: String,
+struct SubmitRequest {
+    game_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SubmitResult {
+    game_data: snorkle_oracle_interface::GameData,
+    transaction: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,8 +37,9 @@ struct Gateway {
 }
 
 impl Gateway {
-     async fn landing_handler(&self) -> Result<Html<&'static str>, StatusCode> {
-        Ok(Html("<html>
+    async fn landing_handler(&self) -> Result<Html<&'static str>, StatusCode> {
+        Ok(Html(
+            "<html>
             <head><h>Snorkle Oracle</h><head>
             <body>
             <h1>API Endpoints</h1>
@@ -42,7 +49,8 @@ impl Gateway {
             </ul>
             </body>
             </html>
-            "))
+            ",
+        ))
     }
 
     async fn info_handler(&self) -> Result<Json<String>, StatusCode> {
@@ -55,10 +63,14 @@ impl Gateway {
     /// Generate a new witness/statement through the oracle
     async fn submit_handler(
         &self,
-        _payload: Json<UpdateRequest>,
-    ) -> Result<Html<&'static str>, StatusCode> {
-        let txn_str = match self.oracle.generate_submission().await {
-            Ok(txn) => txn,
+        request: Json<SubmitRequest>,
+    ) -> Result<Json<SubmitResult>, StatusCode> {
+        let (game_data, txn_str) = match self
+            .oracle
+            .generate_submission(request.game_id.clone())
+            .await
+        {
+            Ok(result) => result,
             Err(err) => {
                 log::error!("Got error: {err}");
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -67,13 +79,16 @@ impl Gateway {
 
         log::info!("Issuing new 'submit_event' transaction");
 
-        if let Err(err) = self.issue_transaction(txn_str).await {
+        if let Err(err) = self.issue_transaction(txn_str.clone()).await {
             log::error!("Got error: {err}");
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
 
         log::debug!("Successfully sent new transaction");
-        Ok(Html("success!"))
+        Ok(Json(SubmitResult {
+            game_data,
+            transaction: txn_str,
+        }))
     }
 
     /// Register the oracle with the contract

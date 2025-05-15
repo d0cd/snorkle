@@ -53,10 +53,13 @@ impl<N: Network> Oracle<N> {
     /// Process a message from the gateway
     pub fn handle_message(&self, msg: OracleRequest) -> anyhow::Result<OracleResponse> {
         match msg {
-            OracleRequest::GenerateSubmission => {
-                let txn = self.generate_submission()?;
+            OracleRequest::GenerateSubmission { game_id } => {
+                let (game_data, txn) = self.generate_submission(game_id)?;
                 let txn_str = serde_json::to_string(&txn)?;
-                Ok(OracleResponse::Submission(txn_str))
+                Ok(OracleResponse::Submission {
+                    game_data,
+                    transaction: txn_str,
+                })
             }
             OracleRequest::GetRegistration => {
                 let txn = self.generate_registration()?;
