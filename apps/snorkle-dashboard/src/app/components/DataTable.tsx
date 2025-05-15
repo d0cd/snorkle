@@ -17,6 +17,7 @@ interface DataTableProps {
 }
 
 export function DataTable({ entries, isLoading = false }: DataTableProps) {
+  console.log('DataTable entries:', entries);
   if (isLoading) {
     return (
       <Box sx={{ width: '100%', p: 6, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -36,9 +37,7 @@ export function DataTable({ entries, isLoading = false }: DataTableProps) {
     );
   }
 
-  // Check if entries are event objects (oracle, timestamp, event_data)
-  const isEventTable = entries[0]?.value && typeof entries[0].value === 'object' &&
-    'oracle' in entries[0].value && 'timestamp' in entries[0].value && 'event_data' in entries[0].value;
+  const isEventTable = true; // Force event table rendering for debugging
 
   if (isEventTable) {
     return (
@@ -49,20 +48,23 @@ export function DataTable({ entries, isLoading = false }: DataTableProps) {
               <TableCell sx={{ fontWeight: 'bold' }}>Oracle</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Block Height</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Event ID</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Away Score</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Home Score</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Away Score</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {entries.map((entry) => {
+            {entries.map((entry, index) => {
               const event = entry.value;
+              const eventData = event.event_data || {};
+              // Helper to strip Aleo type suffixes
+              const strip = (val: any) => typeof val === 'string' ? val.replace(/(u32|u8|field)$/,'') : val;
               return (
-                <TableRow key={entry.key} hover>
+                <TableRow key={entry.key ?? index} hover>
                   <TableCell>{event.oracle}</TableCell>
-                  <TableCell>{String(event.timestamp).replace(/u32$/, '')}</TableCell>
-                  <TableCell>{event.event_data?.id ? String(event.event_data.id).replace(/field$/, '') : ''}</TableCell>
-                  <TableCell>{event.event_data?.away_team_score ? String(event.event_data.away_team_score).replace(/u8$/, '') : ''}</TableCell>
-                  <TableCell>{event.event_data?.home_team_score ? String(event.event_data.home_team_score).replace(/u8$/, '') : ''}</TableCell>
+                  <TableCell>{strip(event.timestamp)}</TableCell>
+                  <TableCell>{strip(eventData.id)}</TableCell>
+                  <TableCell>{strip(eventData.home_team_score)}</TableCell>
+                  <TableCell>{strip(eventData.away_team_score)}</TableCell>
                 </TableRow>
               );
             })}
@@ -83,8 +85,8 @@ export function DataTable({ entries, isLoading = false }: DataTableProps) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {entries.map((entry) => (
-            <TableRow key={entry.key} hover>
+          {entries.map((entry, index) => (
+            <TableRow key={entry.key ?? index} hover>
               <TableCell component="th" scope="row">
                 {entry.key}
               </TableCell>

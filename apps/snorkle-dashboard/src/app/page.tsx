@@ -85,6 +85,9 @@ export default function AppPage() {
             zIndex: 1100,
           }}
         >
+          <Typography variant="h4" fontWeight={700} color="primary" mb={2} letterSpacing={2} sx={{ textTransform: 'lowercase' }}>
+            snorkle
+          </Typography>
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Oracle</InputLabel>
             <Select
@@ -97,9 +100,6 @@ export default function AppPage() {
               ))}
             </Select>
           </FormControl>
-          <Typography variant="h4" fontWeight={700} color="primary" mb={2} letterSpacing={2} sx={{ textTransform: 'lowercase' }}>
-            snorkle
-          </Typography>
           <Divider sx={{ mb: 2 }} />
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Dashboard</InputLabel>
@@ -181,6 +181,18 @@ export default function AppPage() {
   );
 }
 
+function sanitizeToJson(str: string) {
+  // Add double quotes around keys
+  let json = str.replace(/([a-zA-Z0-9_]+):/g, '"$1":');
+  // Remove trailing commas before closing braces/brackets
+  json = json.replace(/,\s*([}\]])/g, '$1');
+  // Add double quotes around values that look like addresses, fields, or Aleo types
+  json = json.replace(/: ([a-zA-Z0-9_]+field|aleo1[a-zA-Z0-9]+|[0-9]+u32|[0-9]+u8)/g, ': "$1"');
+  // Remove newlines and extra spaces
+  json = json.replace(/\n/g, '').replace(/\s+/g, ' ');
+  return JSON.parse(json);
+}
+
 function EventsDashboard({ network, endpointUrl, program, mode }: { network: string; endpointUrl: string; program: string; mode: string }) {
   const [numEvents, setNumEvents] = useState(10); // Configurable number of events
   const [loading, setLoading] = useState(false);
@@ -225,7 +237,12 @@ function EventsDashboard({ network, endpointUrl, program, mode }: { network: str
           const eventData = await eventRes.json();
           eventEntries.push(eventData.value || eventData);
         }
-        if (!cancelled) setRawEntries(eventEntries);
+        if (!cancelled) {
+          setRawEntries(eventEntries);
+          if (eventEntries.length > 0) {
+            console.log('First event entry:', eventEntries[0]);
+          }
+        }
       } catch (err: any) {
         if (!cancelled) setError(err.message || 'Failed to fetch events');
       } finally {
@@ -265,7 +282,10 @@ function EventsDashboard({ network, endpointUrl, program, mode }: { network: str
       {loading ? (
         <Alert severity="info">Loading events...</Alert>
       ) : (
-        <DataTable entries={rawEntries} />
+        <DataTable entries={rawEntries.map((event, idx) => ({
+          key: idx,
+          value: typeof event === 'string' ? sanitizeToJson(event) : event
+        }))} />
       )}
     </Box>
   );
