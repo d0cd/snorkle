@@ -13,6 +13,7 @@ use rand::rngs::OsRng;
 use base64::engine::general_purpose::URL_SAFE as BASE64;
 use base64::prelude::*;
 
+use snarkvm::ledger::store::helpers::memory::ConsensusMemory;
 use snarkvm::prelude::*;
 
 use snorkle_oracle_interface::{GameData, OracleInfo};
@@ -40,6 +41,7 @@ fn main() -> anyhow::Result<()> {
 struct Oracle<N: Network> {
     key: PrivateKey<N>,
     program: Program<N>,
+    vm: VM<N, ConsensusMemory<N>>,
     info: OracleInfo,
 }
 
@@ -57,8 +59,17 @@ impl<N: Network> Oracle<N> {
         const TESTNET_PRIVATE_KEY: &str =
             "APrivateKey1zkp3TFLRzSPqqhNh9o6csyZ1yPaizmtUzwEWMeTJ9bXxQMA";
 
+        let vm = Self::init_vm()?;
+        println!("Created snarkVM instance");
+
         let program = Self::init_program();
         println!("Loaded program");
+
+        // Add the oracle program to the process.
+        vm.process()
+            .write()
+            .add_program(&program)
+            .with_context(|| "Failed to add program to VM")?;
 
         // Create the private key.
         let private_key = PrivateKey::<N>::from_str(TESTNET_PRIVATE_KEY)
@@ -75,6 +86,7 @@ impl<N: Network> Oracle<N> {
                 report,
             },
             program,
+            vm,
             key: private_key,
         })
     }

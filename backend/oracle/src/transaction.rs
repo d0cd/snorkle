@@ -12,6 +12,13 @@ use super::Oracle;
 
 /// Generates a transaction for the oracle's private key, event ID, and game data.
 impl<N: Network> Oracle<N> {
+    pub fn init_vm() -> anyhow::Result<VM<N, ConsensusMemory<N>>> {
+        VM::<N, ConsensusMemory<N>>::from(
+            ConsensusStore::open(0).expect("Failed to initialize the consensus store"),
+        )
+        .with_context(|| "Failed to initialize the VM")
+    }
+
     pub fn init_program() -> Program<N> {
         Program::<N>::from_str(include_str!(
             "../../resources/proto_snorkle_oracle_002.aleo"
@@ -24,24 +31,13 @@ impl<N: Network> Oracle<N> {
         transition: &str,
         args: &[Value<N>],
     ) -> anyhow::Result<Transaction<N>> {
-        // Initialize a VM.
-        let vm = VM::<N, ConsensusMemory<N>>::from(
-            ConsensusStore::open(0).expect("Failed to initialize the consensus store"),
-        )
-        .expect("Failed to initialize the VM");
-
-        // Add the oracle program to the process.
-        vm.process()
-            .write()
-            .add_program(&self.program)
-            .expect("Failed to add program");
-
         let query = Some(snarkvm::prelude::query::Query::from(
             "https://api.explorer.provable.com/v1",
         ));
 
         // Create the transaction.
-        let txn = vm
+        let txn = self
+            .vm
             .execute(
                 &self.key,
                 (self.program.id(), transition),
@@ -54,7 +50,7 @@ impl<N: Network> Oracle<N> {
             .with_context(|| "Failed to create a transaction")?;
 
         #[cfg(feature = "extra-verify")]
-        vm.process().read().verify_execution(
+        self.vm.process().read().verify_execution(
             snarkvm::algorithms::snark::varuna::VarunaVersion::V2,
             txn.execution().unwrap(),
         )?;
