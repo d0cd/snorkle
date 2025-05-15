@@ -1,4 +1,4 @@
-program proto_snorkle_oracle_001.aleo;
+program proto_snorkle_oracle_002.aleo;
 
 struct EventData:
     id as field;
@@ -41,17 +41,23 @@ mapping total_events:
 function register:
     input r0 as field.private;
     async register self.caller r0 into r1;
-    output r1 as proto_snorkle_oracle_001.aleo/register.future;
+    output r1 as proto_snorkle_oracle_002.aleo/register.future;
 
 finalize register:
     input r0 as address.public;
     input r1 as field.public;
-    cast r1 block.height into r2 as OracleData;
-    set r2 into registered_oracles[r0];
-    get.or_use total_oracles[0u8] 0u128 into r3;
-    set r0 into registered_oracles_addresses[r3];
-    add r3 1u128 into r4;
-    set r4 into total_oracles[0u8];
+    contains registered_oracles[r0] into r2;
+    not r2 into r3;
+    branch.eq r3 false to end_then_0_0;
+    get.or_use total_oracles[0u8] 0u128 into r4;
+    set r0 into registered_oracles_addresses[r4];
+    add r4 1u128 into r5;
+    set r5 into total_oracles[0u8];
+    branch.eq true true to end_otherwise_0_1;
+    position end_then_0_0;
+    position end_otherwise_0_1;
+    cast r1 block.height into r6 as OracleData;
+    set r6 into registered_oracles[r0];
 
 function submit_event:
     input r0 as EventData.private;
@@ -59,7 +65,7 @@ function submit_event:
     sign.verify r1 self.caller r0 into r2;
     assert.eq r2 true;
     async submit_event self.caller r0 into r3;
-    output r3 as proto_snorkle_oracle_001.aleo/submit_event.future;
+    output r3 as proto_snorkle_oracle_002.aleo/submit_event.future;
 
 finalize submit_event:
     input r0 as address.public;
@@ -68,8 +74,8 @@ finalize submit_event:
     assert.eq r2 true;
     cast 0field 0u32 into r3 as OracleData;
     get.or_use registered_oracles[r0] r3 into r4;
-    add r4.registration_timestamp 1000u32 into r5;
-    lte r5 block.height into r6;
+    add r4.registration_timestamp 10000u32 into r5;
+    gte r5 block.height into r6;
     assert.eq r6 true;
     contains events[r1.id] into r7;
     not r7 into r8;
