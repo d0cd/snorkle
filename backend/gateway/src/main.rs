@@ -1,6 +1,5 @@
-#![feature(box_into_inner)]
-
 use std::sync::Arc;
+use std::time::Instant;
 
 use anyhow::Context;
 
@@ -32,7 +31,13 @@ struct StatusResponse {
     message: String,
 }
 
+struct RequestInfo {
+    time: Instant,
+    game_id: String,
+}
+
 struct Gateway {
+    history: Vec<RequestInfo>,
     oracle: Oracle,
 }
 
@@ -40,12 +45,17 @@ impl Gateway {
     async fn landing_handler(&self) -> Result<Html<&'static str>, StatusCode> {
         Ok(Html(
             "<html>
-            <head><h>Snorkle Oracle</h><head>
-            <body>
-            <h1>API Endpoints</h1>
+            <head><title>Snorkle Oracle</title><head>
+            <body>i
+            <h1>Snorkle Oracle</h1>
+            <h2>API Endpoints</h2>
             <ul>
                 <li><b>/info</b> Show report data for the oracle</li>
                 <li><b>/submit</b> Ask the oracle to submit a new event</li>
+            </ul>
+            <h2>Request History</h2>
+            <ul>
+
             </ul>
             </body>
             </html>
@@ -106,9 +116,13 @@ impl Gateway {
             serde_json::to_string(&txn).unwrap()
         );
 
+        let endpoint = "https://api.explorer.provable.com/v1/testnet";
+
+        log::info!("Broadcasting transaction to endpoint at {endpoint}");
+
         let api_client = reqwest::Client::new();
         let response = api_client
-            .post("https://api.explorer.provable.com/v1/testnet/transaction/broadcast")
+            .post(format!("{endpoint}/transaction/broadcast"))
             .body(txn)
             .header("Content-Type", "application/json")
             .send()
@@ -120,6 +134,9 @@ impl Gateway {
                 response.status()
             );
         }
+
+        let body = response.text().await?;
+        log::debug!("Endpoint response: {body}");
 
         Ok(())
     }
@@ -133,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_context(|| "Failed to connect to oracle")?;
 
-    let obj = Arc::new(Gateway { oracle });
+    let obj = Arc::new(Gateway { oracle, history: vec![] });
     let obj1 = obj.clone();
     let obj2 = obj.clone();
     let obj3 = obj.clone();
