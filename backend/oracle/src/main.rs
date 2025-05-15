@@ -131,7 +131,10 @@ impl<N: Network> Oracle<N> {
 
         let hash_value = Value::<N>::from_str(&attestation_hash)?;
 
-        self.generate_transaction("register", &[hash_value])
+        let txn = self.generate_transaction("register", &[hash_value])?;
+        println!("Registration transaction id is {}", txn.id());
+
+        Ok(txn)
     }
 
     /// Generate a new transaction that contains the game's score
@@ -160,10 +163,9 @@ impl<N: Network> Oracle<N> {
         let signature = self.key.sign(&game_data_value.to_fields()?, &mut OsRng)?;
         let signature = Value::<N>::from_str(&signature.to_string())?;
 
-        Ok((
-            game_data,
-            self.generate_transaction("submit_event", &[game_data_value, signature])?,
-        ))
+        let txn = self.generate_transaction("submit_event", &[game_data_value, signature])?;
+
+        Ok((game_data, txn))
     }
 }
 
