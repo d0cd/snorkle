@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 serde = { workspace=true }
 bincode = { workspace=true }
+snarkvm = { workspace=true }

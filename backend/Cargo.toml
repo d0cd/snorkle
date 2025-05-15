@@ -8,3 +8,4 @@ serde = { version = "1", features = ["derive"] }
 tokio-util = "0.7"
 futures = "0.3"
 log = "0.4"
+snarkvm = "1.6"

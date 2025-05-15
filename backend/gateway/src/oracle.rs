@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
@@ -7,7 +9,11 @@ use anyhow::Context;
 
 use futures::sink::SinkExt;
 
-use snorkle_oracle_interface::{BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse};
+use snorkle_oracle_interface::{
+    BINCODE_CONFIG, ORACLE_PORT, OracleInfo, OracleRequest, OracleResponse,
+};
+
+use snarkvm::prelude::{Transaction,TestnetV0};
 
 use bincode::serde::{decode_from_slice, encode_to_vec};
 
@@ -40,16 +46,17 @@ impl Oracle {
         Ok(info)
     }
 
-    pub async fn generate_witness(&self) -> anyhow::Result<Vec<u8>> {
+    pub async fn generate_witness(&self) -> anyhow::Result<Transaction<TestnetV0>> {
         let msg = OracleRequest::GenerateWitness;
         let response = self.issue_request(msg).await?;
 
-        let OracleResponse::Witness(witness) = response else {
+        let OracleResponse::Witness(txn) = response else {
             anyhow::bail!("Got invalid response");
         };
 
-        Ok(witness)
-    }
+        Ok(Box::into_inner(txn))
+        
+           }
 
     async fn issue_request(&self, msg: OracleRequest) -> anyhow::Result<OracleResponse> {
         let data = encode_to_vec(&msg, BINCODE_CONFIG)?;

@@ -15,6 +15,7 @@ ecdsa = "0.16"
 p256 = "0.13"
 dns-lookup = "2.0"
 tokio-util = { workspace=true, features=["codec"] }
+snarkvm = {workspace=true }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 schnorrkel = "0.11"

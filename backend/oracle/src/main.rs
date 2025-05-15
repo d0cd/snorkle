@@ -6,7 +6,6 @@ extern crate sgx_tstd as std;
 
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
-use std::string::String;
 
 use bytes::{Bytes, BytesMut};
 
@@ -19,7 +18,11 @@ use ureq::unversioned::transport::DefaultConnector;
 
 use anyhow::Context;
 
-use snorkle_oracle_interface::{BINCODE_CONFIG, OracleInfo, OracleRequest, OracleResponse};
+use snorkle_oracle_interface::{
+    GameData, OracleInfo, OracleRequest, OracleResponse, BINCODE_CONFIG,
+};
+
+use snarkvm::prelude::{TestnetV0, Transaction};
 
 mod http;
 use http::Resolver;
@@ -48,6 +51,9 @@ struct Oracle {
 
 #[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
 mod tdx;
+
+mod transaction;
+use transaction::generate_transaction;
 
 use base64::prelude::*;
 
@@ -146,14 +152,38 @@ impl Oracle {
     fn handle_message(&self, msg: OracleRequest) -> anyhow::Result<OracleResponse> {
         match msg {
             OracleRequest::GenerateWitness => {
-                let witness = self.generate_witness()?;
-                Ok(OracleResponse::Witness(witness))
+                let txn = self.generate_witness()?;
+                Ok(OracleResponse::Witness(Box::new(txn)))
             }
             OracleRequest::GetOracleInfo => Ok(OracleResponse::OracleInfo(self.info.clone())),
         }
     }
 
-    fn generate_witness(&self) -> anyhow::Result<Vec<u8>> {
+    fn sign(&self, statement: &str) -> Vec<u8> {
+        #[cfg(target_env = "sgx")]
+        {
+            let hash = {
+                let mut hasher = Sha256::new();
+                hasher.update(statement.as_bytes());
+                hasher.finalize()
+            };
+
+            // Use enclave's private key
+            let ecc_handle = EccHandle::new()?;
+            let private_key = ecc_handle.get_private_key()?;
+            ecc_handle.ecdsa_sign_slice(&hash, &private_key)?
+        }
+
+        #[cfg(not(target_env = "sgx"))]
+        {
+            let signature = self
+                .keypair
+                .sign_simple("oracle statment".as_bytes(), statement.as_bytes());
+            signature.to_bytes().to_vec()
+        }
+    }
+
+    fn generate_witness(&self) -> anyhow::Result<Transaction<TestnetV0>> {
         let config = Config::builder().build();
         let resolver = Resolver::new();
         let connector = DefaultConnector::new();
@@ -161,42 +191,21 @@ impl Oracle {
         let agent = ureq::Agent::with_parts(config, connector, resolver);
         let mut response = agent.get("https://example.com".to_string()).call()?;
 
+        let mock_data = GameData {
+            event_id: "rand".to_string(),
+            home_score: 1,
+            away_score: 0,
+        };
+
         println!("Status: {}", response.status());
 
         // Generate hash of the body
         let body = response.body_mut().read_to_string()?;
         // Sign the hash
-        let signature = {
-            #[cfg(target_env = "sgx")]
-            {
-                let hash = {
-                    let mut hasher = Sha256::new();
-                    hasher.update(body.as_bytes());
-                    hasher.finalize()
-                };
+        let signature = self.sign(&body);
 
-                // Use enclave's private key
-                let ecc_handle = EccHandle::new()?;
-                let private_key = ecc_handle.get_private_key()?;
-                ecc_handle.ecdsa_sign_slice(&hash, &private_key)?
-            }
-            #[cfg(not(target_env = "sgx"))]
-            {
-                let signature = self
-                    .keypair
-                    .sign_simple("oracle statment".as_bytes(), body.as_bytes());
-                signature.to_bytes().to_vec()
-            }
-        };
-
-        // Print the signature (in hex format)
-        let hex_signature = signature
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<String>();
-        println!("Signature: {hex_signature}");
-
-        Ok(signature)
+        let txn = generate_transaction(mock_data);
+        Ok(txn)
     }
 }
 
