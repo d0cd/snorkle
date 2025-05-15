@@ -131,8 +131,8 @@ export function EventsDashboard({ network, endpointUrl, program, mode, onRefresh
                 <TableCell sx={{ fontWeight: 'bold' }}>Oracle ID</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Event ID</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Block Height</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Away Score</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Home Score</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Away Score</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -140,11 +140,11 @@ export function EventsDashboard({ network, endpointUrl, program, mode, onRefresh
                 const parsedEvent = typeof event === 'string' ? sanitizeToJson(event) : event;
                 return (
                   <TableRow key={idx} hover>
-                    <TableCell>{parsedEvent.oracle || 'N/A'}</TableCell>
+                    <TableCell>{parsedEvent.oracle_id || 'N/A'}</TableCell>
                     <TableCell>{parsedEvent.event_data?.id || 'N/A'}</TableCell>
                     <TableCell>{parsedEvent.timestamp?.replace('u32', '') || 'N/A'}</TableCell>
-                    <TableCell>{parsedEvent.event_data?.away_team_score?.replace('u8', '') || 'N/A'}</TableCell>
                     <TableCell>{parsedEvent.event_data?.home_team_score?.replace('u8', '') || 'N/A'}</TableCell>
+                    <TableCell>{parsedEvent.event_data?.away_team_score?.replace('u8', '') || 'N/A'}</TableCell>
                   </TableRow>
                 );
               })}

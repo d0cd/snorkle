@@ -1,12 +1,15 @@
 export interface Program {
   id: string;
   name: string;
-  mappings: Mapping[];
+  owner: string;
+  imports: string[];
+  mappings: string[];
 }
 
 export interface Mapping {
   id: string;
   name: string;
+  programId: string;
   keyType: string;
   valueType: string;
 }
@@ -21,4 +24,12 @@ export interface DashboardConfig {
   selectedMapping: string;
   pageSize: number;
   currentPage: number;
+}
+
+export interface AttestationResult {
+  isValid: boolean;
+  error?: string;
+  oracleId?: string;
+  registrationTimestamp?: number;
+  validUntil?: number;
 } 

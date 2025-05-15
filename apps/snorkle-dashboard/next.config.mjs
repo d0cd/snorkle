@@ -10,32 +10,30 @@ const nextConfig = {
       tls: false 
     };
 
-    // Optimize chunk splitting to prevent circular dependencies
+    // Handle worker files
+    config.module.rules.push({
+      test: /\.worker\.(js|ts)$/,
+      use: { 
+        loader: 'worker-loader',
+        options: { 
+          filename: 'static/[hash].worker.js',
+          publicPath: '/_next/'
+        }
+      }
+    });
+
+    // Simplified chunk splitting configuration
     config.optimization = {
       ...config.optimization,
       moduleIds: 'deterministic',
-      runtimeChunk: 'single',
       splitChunks: {
         chunks: 'all',
-        maxInitialRequests: Infinity,
-        minSize: 0,
         cacheGroups: {
           vendor: {
             test: /[\\/]node_modules[\\/]/,
-            name(module) {
-              // Get the name. E.g. node_modules/packageName/not/this/part.js
-              // or node_modules/packageName
-              const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
-              // Avoid circular dependencies by using a consistent naming scheme
-              return `npm.${packageName.replace('@', '')}`;
-            },
+            name: 'vendor',
+            chunks: 'all',
             priority: 10,
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            priority: 5,
-            reuseExistingChunk: true,
           },
         },
       },

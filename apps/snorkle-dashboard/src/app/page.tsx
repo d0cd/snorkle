@@ -49,7 +49,7 @@ export default function AppPage() {
   const [endpoint, setEndpoint] = useState(ENDPOINTS[0].value);
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [mode, setMode] = useState<'light' | 'dark'>('dark');
-  const [program, setProgram] = useState('proto_snorkle_oracle_001.aleo');
+  const [program, setProgram] = useState('proto_snorkle_oracle_002.aleo');
   const [blockHeight, setBlockHeight] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -68,9 +68,7 @@ export default function AppPage() {
   }), [mode]);
 
   const programs = [
-    { id: 'proto_snorkle_oracle_001.aleo', name: 'proto_snorkle_oracle_001.aleo' },
-    { id: 'proto_snorkle_bet_000.aleo', name: 'proto_snorkle_bet_000.aleo' },
-    { id: 'proto_snorkle_oracle_000.aleo', name: 'proto_snorkle_oracle_000.aleo' },
+    { id: 'proto_snorkle_oracle_002.aleo', name: 'proto_snorkle_oracle_002.aleo' },
   ];
 
   // Fetch block height for sidebar
