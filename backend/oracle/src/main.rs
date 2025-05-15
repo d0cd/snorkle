@@ -19,7 +19,7 @@ use ureq::unversioned::transport::DefaultConnector;
 
 use anyhow::Context;
 
-use snorkle_oracle_interface::{OracleInfo, OracleRequest, OracleResponse, BINCODE_CONFIG};
+use snorkle_oracle_interface::{BINCODE_CONFIG, OracleInfo, OracleRequest, OracleResponse};
 
 mod http;
 use http::Resolver;
@@ -31,12 +31,6 @@ use sgx_crypto::{
     crypto::{ecc::EccHandle, hash::Sha256},
     types::*,
 };
-
-#[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
-use tdx_guest as tdx;
-
-#[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
-use {ecdsa::SigningKey, p256::SecretKey};
 
 use rand::rngs::OsRng;
 
