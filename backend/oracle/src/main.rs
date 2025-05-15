@@ -65,7 +65,7 @@ impl<N: Network> Oracle<N> {
         println!("Generated private key!");
 
         let address = Address::<N>::try_from(&private_key)?;
-        println!("Oracles address is {address}");
+        println!("Oracle's address is {address}");
 
         let report = Self::generate_report(&address.to_string())?;
 
@@ -89,7 +89,7 @@ impl<N: Network> Oracle<N> {
     fn generate_report(address: &str) -> anyhow::Result<String> {
         let address = BASE64.encode(address);
         let report = BASE64.encode(tdx::generate_report(&address)?);
-        println!("Created TXD Oracle!");
+        println!("Created TDX Oracle!");
         Ok(report)
     }
 

@@ -14,7 +14,7 @@ use super::Oracle;
 impl<N: Network> Oracle<N> {
     pub fn init_program() -> Program<N> {
         Program::<N>::from_str(include_str!(
-            "../../resources/proto_snorkle_oracle_001.aleo"
+            "../../resources/proto_snorkle_oracle_002.aleo"
         ))
         .expect("Failed to create the program")
     }
