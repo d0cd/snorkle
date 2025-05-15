@@ -17,15 +17,18 @@ pub struct OracleInfo {
 
 #[derive(Serialize, Deserialize)]
 pub enum OracleRequest {
-    GenerateWitness,
+    GenerateSubmission,
     GetOracleInfo,
+    GetRegistration,
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum OracleResponse {
     /// Contains the JSON-serialized transaction as a string
-    Witness(String),
+    Submission(String),
     OracleInfo(OracleInfo),
+    /// Contains the JSON-serialized transaction as a string
+    Registration(String),
 }
 
 pub const BINCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();

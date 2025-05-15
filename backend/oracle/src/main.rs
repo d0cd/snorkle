@@ -6,11 +6,9 @@ extern crate sgx_tstd as std;
 
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener};
 
-use ureq::config::Config;
-
-use ureq::unversioned::transport::DefaultConnector;
-
 use anyhow::Context;
+
+use rand::rngs::OsRng;
 
 use base64::prelude::*;
 
@@ -22,8 +20,8 @@ use snorkle_oracle_interface::{GameData, OracleInfo};
 mod tdx;
 
 mod http;
-use http::Resolver;
 
+mod fetch;
 mod gateway;
 mod transaction;
 
@@ -116,27 +114,50 @@ impl<N: Network> Oracle<N> {
         }
     }
 
+    fn generate_registration(&self) -> anyhow::Result<Transaction<N>> {
+        let report = self.info.report.as_bytes();
+
+        let mut report_bits = Vec::with_capacity(report.len() * 8);
+        for byte in report {
+            for i in (0..8).rev() {
+                report_bits.push((byte >> i) & 1 == 1);
+            }
+        }
+
+        let hasher = &snarkvm::prelude::BHP_1024;
+        let attestation_hash = hasher.hash(&report_bits)?;
+        let hash_value = Value::<N>::from_str(&attestation_hash.to_string())?;
+
+        self.generate_transaction("register", &[hash_value])
+    }
+
     /// Generate a new transaction that contains the game's score
-    fn generate_witness(&self) -> anyhow::Result<Transaction<N>> {
-        let config = Config::builder().build();
-        let resolver = Resolver::new();
-        let connector = DefaultConnector::new();
+    fn generate_submission(&self) -> anyhow::Result<Transaction<N>> {
+        let (home, away) = self.fetch_scores()?;
 
-        let agent = ureq::Agent::with_parts(config, connector, resolver);
-        let mut response = agent.get("https://example.com".to_string()).call()?;
-
-        let mock_data = GameData {
+        let game_data = GameData {
             event_id: "0field".to_string(),
-            home_score: 1,
-            away_score: 3,
+            home_score: home,
+            away_score: away,
         };
 
-        println!("Status: {}", response.status());
+        // Create the game data.
+        let data_str = format!(
+            r"
+{{
+    id: {},
+    home_team_score: {}u8,
+    away_team_score: {}u8
+}}",
+            game_data.event_id, game_data.home_score, game_data.away_score
+        );
 
-        // Generate hash of the body
-        let body = response.body_mut().read_to_string()?;
+        let game_data = Value::<N>::from_str(&data_str).expect("Failed to create game data");
 
-        self.generate_transaction(mock_data)
+        let signature = self.key.sign(&game_data.to_fields()?, &mut OsRng)?;
+        let signature = Value::<N>::from_str(&signature.to_string())?;
+
+        self.generate_transaction("submit_event", &[game_data, signature])
     }
 }
 

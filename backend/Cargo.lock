@@ -3326,7 +3326,6 @@ dependencies = [
  "reqwest 0.12.15",
  "serde",
  "serde_json",
- "snarkvm",
  "snorkle-oracle-interface",
  "tokio",
  "tokio-stream",
@@ -3359,7 +3358,6 @@ version = "0.1.0"
 dependencies = [
  "bincode 2.0.1",
  "serde",
- "snarkvm",
 ]
 
 [[package]]

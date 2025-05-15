@@ -42,11 +42,22 @@ impl Oracle {
         Ok(info)
     }
 
-    pub async fn generate_witness(&self) -> anyhow::Result<String> {
-        let msg = OracleRequest::GenerateWitness;
+    pub async fn generate_submission(&self) -> anyhow::Result<String> {
+        let msg = OracleRequest::GenerateSubmission;
         let response = self.issue_request(msg).await?;
 
-        let OracleResponse::Witness(txn_str) = response else {
+        let OracleResponse::Submission(txn_str) = response else {
+            anyhow::bail!("Got invalid response");
+        };
+
+        Ok(txn_str)
+    }
+
+    pub async fn generate_registration(&self) -> anyhow::Result<String> {
+        let msg = OracleRequest::GetRegistration;
+        let response = self.issue_request(msg).await?;
+
+        let OracleResponse::Registration(txn_str) = response else {
             anyhow::bail!("Got invalid response");
         };
 

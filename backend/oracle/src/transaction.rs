@@ -8,8 +8,6 @@ use snarkvm::ledger::store::helpers::memory::ConsensusMemory;
 use snarkvm::prelude::store::ConsensusStore;
 use snarkvm::prelude::*;
 
-use snorkle_oracle_interface::GameData;
-
 use super::Oracle;
 
 /// Generates a transaction for the oracle's private key, event ID, and game data.
@@ -21,23 +19,11 @@ impl<N: Network> Oracle<N> {
         .expect("Failed to create the program")
     }
 
-    pub fn generate_transaction(&self, game_data: GameData) -> anyhow::Result<Transaction<N>> {
-        // Create the game data.
-        let data_str = format!(
-            r"
-{{
-    id: {},
-    home_team_score: {}u8,
-    away_team_score: {}u8
-}}",
-            game_data.event_id, game_data.home_score, game_data.away_score
-        );
-
-        let game_data = Value::<N>::from_str(&data_str).expect("Failed to create game data");
-
-        let signature = self.key.sign(&game_data.to_fields()?, &mut OsRng)?;
-        let signature = Value::<N>::from_str(&signature.to_string())?;
-
+    pub fn generate_transaction(
+        &self,
+        transition: &str,
+        args: &[Value<N>],
+    ) -> anyhow::Result<Transaction<N>> {
         // Initialize a VM.
         let vm = VM::<N, ConsensusMemory<N>>::from(
             ConsensusStore::open(0).expect("Failed to initialize the consensus store"),
@@ -53,8 +39,8 @@ impl<N: Network> Oracle<N> {
         // Create the transaction.
         vm.execute(
             &self.key,
-            (self.program.id(), "submit_event"),
-            [game_data, signature].into_iter(),
+            (self.program.id(), transition),
+            args.iter(),
             None,
             0,
             None,

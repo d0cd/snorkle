@@ -45,11 +45,11 @@ impl Gateway {
     }
 
     /// Generate a new witness/statement through the oracle
-    async fn update_handler(
+    async fn submit_handler(
         &self,
         _payload: Json<UpdateRequest>,
     ) -> Result<Html<&'static str>, StatusCode> {
-        let txn_str = match self.oracle.generate_witness().await {
+        let txn_str = match self.oracle.generate_submission().await {
             Ok(txn) => txn,
             Err(err) => {
                 log::error!("Got error: {err}");
@@ -57,34 +57,41 @@ impl Gateway {
             }
         };
 
-        log::info!("Issuing new update transaction");
-        self.issue_transaction(txn_str).await
-    }
+        log::info!("Issuing new 'submit_event' transaction");
 
-    /// Broadcast a transaction to the Aleo network
-    async fn issue_transaction(
-        &self,
-        txn: String,
-    ) -> Result<Html<&'static str>, StatusCode> {
-        log::debug!(
-            "Issuing transaction: {}",
-            serde_json::to_string(&txn).unwrap()
-        );
-
-        let api_client = reqwest::Client::new();
-        if let Err(err) = api_client
-            .post("https://api.explorer.provable.com/v1/testnet/transaction/broadcast")
-            .body(txn)
-            .header("Content-Type", "application/json")
-            .send()
-            .await
-        {
+        if let Err(err) = self.issue_transaction(txn_str).await {
             log::error!("Got error: {err}");
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
 
         log::debug!("Successfully sent new transaction");
         Ok(Html("success!"))
+    }
+
+    /// Register the oracle with the contract
+    pub async fn register(&self) -> anyhow::Result<()> {
+        let txn_str = self.oracle.generate_registration().await?;
+
+        log::info!("Issuing new 'register' transaction");
+        self.issue_transaction(txn_str).await
+    }
+
+    /// Broadcast a transaction to the Aleo network
+    async fn issue_transaction(&self, txn: String) -> anyhow::Result<()> {
+        log::debug!(
+            "Issuing transaction: {}",
+            serde_json::to_string(&txn).unwrap()
+        );
+
+        let api_client = reqwest::Client::new();
+        let _response = api_client
+            .post("https://api.explorer.provable.com/v1/testnet/transaction/broadcast")
+            .body(txn)
+            .header("Content-Type", "application/json")
+            .send()
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -100,16 +107,19 @@ async fn main() -> anyhow::Result<()> {
     let obj1 = obj.clone();
     let obj2 = obj.clone();
     let obj3 = obj.clone();
+    let obj4 = obj.clone();
 
     // Build our application with a route
     let app = Router::new()
         .route(
             "/update",
-            post(async move |payload| obj.update_handler(payload).await),
+            post(async move |payload| obj1.submit_handler(payload).await),
         )
-        .route("/info", get(async move || obj1.info_handler().await))
-        .route("/", get(async move || obj2.status_handler().await))
-        .route("/status", get(async move || obj3.status_handler().await));
+        .route("/info", get(async move || obj2.info_handler().await))
+        .route("/", get(async move || obj3.status_handler().await))
+        .route("/status", get(async move || obj4.status_handler().await));
+    log::info!("Registering oracle");
+    obj.register().await?;
 
     // Run it with hyper on localhost:3000
     let addr = "0.0.0.0:3000";

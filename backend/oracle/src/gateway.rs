@@ -10,7 +10,7 @@ use anyhow::Context;
 
 use bincode::serde::{decode_from_slice, encode_to_vec};
 
-use snorkle_oracle_interface::{OracleRequest, OracleResponse, BINCODE_CONFIG};
+use snorkle_oracle_interface::{BINCODE_CONFIG, OracleRequest, OracleResponse};
 
 use snarkvm::prelude::Network;
 
@@ -53,10 +53,15 @@ impl<N: Network> Oracle<N> {
     /// Process a message from the gateway
     pub fn handle_message(&self, msg: OracleRequest) -> anyhow::Result<OracleResponse> {
         match msg {
-            OracleRequest::GenerateWitness => {
-                let txn = self.generate_witness()?;
+            OracleRequest::GenerateSubmission => {
+                let txn = self.generate_submission()?;
                 let txn_str = serde_json::to_string(&txn)?;
-                Ok(OracleResponse::Witness(txn_str))
+                Ok(OracleResponse::Submission(txn_str))
+            }
+            OracleRequest::GetRegistration => {
+                let txn = self.generate_registration()?;
+                let txn_str = serde_json::to_string(&txn)?;
+                Ok(OracleResponse::Registration(txn_str))
             }
             OracleRequest::GetOracleInfo => Ok(OracleResponse::OracleInfo(self.info.clone())),
         }
