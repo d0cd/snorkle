@@ -13,7 +13,7 @@ impl<N: Network> Oracle<N> {
     /// Note: Currently this just contacts example.com and then returns random data
     pub fn fetch_scores(&self) -> anyhow::Result<(u8, u8)> {
         let config = Config::builder().build();
-        let resolver = Resolver::new();
+        let resolver = Resolver::default();
         let connector = DefaultConnector::new();
 
         let agent = ureq::Agent::with_parts(config, connector, resolver);

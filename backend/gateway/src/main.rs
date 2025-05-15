@@ -31,17 +31,25 @@ struct Gateway {
 }
 
 impl Gateway {
-    async fn status_handler(&self) -> (StatusCode, Html<&'static str>) {
-        let response = "<b>Frontend is up and running</b>";
-
-        (StatusCode::OK, Html(response))
+     async fn landing_handler(&self) -> Result<Html<&'static str>, StatusCode> {
+        Ok(Html("<html>
+            <head><h>Snorkle Oracle</h><head>
+            <body>
+            <h1>API Endpoints</h1>
+            <ul>
+                <li><b>/info</b> Show report data for the oracle</li>
+                <li><b>/submit</b> Ask the oracle to submit a new event</li>
+            </ul>
+            </body>
+            </html>
+            "))
     }
 
-    async fn info_handler(&self) -> (StatusCode, Html<String>) {
+    async fn info_handler(&self) -> Result<Json<String>, StatusCode> {
         let info = self.oracle.get_info().await.unwrap();
         let response = serde_json::to_string(&info).unwrap();
 
-        (StatusCode::OK, Html(response))
+        Ok(Json(response))
     }
 
     /// Generate a new witness/statement through the oracle
@@ -114,17 +122,16 @@ async fn main() -> anyhow::Result<()> {
     let obj1 = obj.clone();
     let obj2 = obj.clone();
     let obj3 = obj.clone();
-    let obj4 = obj.clone();
 
     // Build our application with a route
     let app = Router::new()
         .route(
-            "/update",
+            "/submit",
             post(async move |payload| obj1.submit_handler(payload).await),
         )
         .route("/info", get(async move || obj2.info_handler().await))
-        .route("/", get(async move || obj3.status_handler().await))
-        .route("/status", get(async move || obj4.status_handler().await));
+        .route("/", get(async move || obj3.landing_handler().await));
+
     log::info!("Registering oracle");
     obj.register().await?;
 
