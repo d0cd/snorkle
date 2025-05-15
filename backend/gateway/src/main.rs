@@ -84,12 +84,19 @@ impl Gateway {
         );
 
         let api_client = reqwest::Client::new();
-        let _response = api_client
+        let response = api_client
             .post("https://api.explorer.provable.com/v1/testnet/transaction/broadcast")
             .body(txn)
             .header("Content-Type", "application/json")
             .send()
             .await?;
+
+        if response.status() != reqwest::StatusCode::OK {
+            anyhow::bail!(
+                "snarkOS REST API returned status code: {}",
+                response.status()
+            );
+        }
 
         Ok(())
     }

@@ -10,6 +10,7 @@ use anyhow::Context;
 
 use rand::rngs::OsRng;
 
+use base64::engine::general_purpose::URL_SAFE as BASE64;
 use base64::prelude::*;
 
 use snarkvm::prelude::*;
@@ -43,12 +44,14 @@ struct Oracle<N: Network> {
 }
 
 impl<N: Network> Oracle<N> {
+    /// Constructor for SGX (currently broken)
     #[cfg(target_env = "sgx")]
     pub fn new() -> anyhow::Result<Self> {
         todo!();
     }
 
-    #[cfg(all(not(target_arch = "x86_64"), not(target_env = "sgx")))]
+    /// Constructor for TDX and macOS "dummy" oracle
+    #[cfg(not(target_env = "sgx"))]
     pub fn new() -> anyhow::Result<Self> {
         const DEVNET_PRIVATE_KEY: &str =
             "APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH";
@@ -62,10 +65,10 @@ impl<N: Network> Oracle<N> {
         println!("Generated private key!");
 
         let address = Address::<N>::try_from(&private_key)?;
+        println!("Oracles address is {address}");
 
-        let report = BASE64_STANDARD.encode("Hello World");
+        let report = Self::generate_report(&address.to_string())?;
 
-        println!("Created dummy oracle!");
         Ok(Self {
             info: OracleInfo {
                 address: address.to_string(),
@@ -76,22 +79,18 @@ impl<N: Network> Oracle<N> {
         })
     }
 
+    #[cfg(all(not(target_arch = "x86_64"), not(target_env = "sgx")))]
+    fn generate_report(_address: &str) -> anyhow::Result<String> {
+        println!("Created Dummy Oracle!");
+        Ok(BASE64.encode("Hello World"))
+    }
+
     #[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
-    pub fn new() -> anyhow::Result<Self> {
-        let keypair: Keypair = Keypair::generate_with(OsRng);
-        let pubkey = keypair.public.as_compressed();
-
-        let key_hash = BASE64_STANDARD.encode(pubkey.as_bytes());
-        let report = BASE64_STANDARD.encode(tdx::generate_report(&key_hash)?);
-
-        println!("Keypair and Trust Domain set up!");
-        Ok(Self {
-            info: OracleInfo {
-                pubkey: key_hash,
-                report,
-            },
-            keypair,
-        })
+    fn generate_report(address: &str) -> anyhow::Result<String> {
+        let address = BASE64.encode(address);
+        let report = BASE64.encode(tdx::generate_report(&address)?);
+        println!("Created TXD Oracle!");
+        Ok(report)
     }
 
     /// Main loop of the oracle. Can handle one gateway connection
