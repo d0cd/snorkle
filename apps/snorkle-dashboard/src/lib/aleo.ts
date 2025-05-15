@@ -101,14 +101,46 @@ export const getMappingLength = async (
   }
 };
 
-export const parseAleoValue = (value: string): any => {
+// Helper function to parse Aleo values
+export function parseAleoValue(value: string, type: string = 'field'): any {
   try {
-    return aleo.parseAleoValue(value);
+    if (!value) return null;
+
+    switch (type) {
+      case 'u8':
+      case 'u16':
+      case 'u32':
+      case 'u64':
+      case 'u128':
+        return BigInt(value);
+      case 'i8':
+      case 'i16':
+      case 'i32':
+      case 'i64':
+      case 'i128':
+        return BigInt(value);
+      case 'field':
+        return value;
+      case 'boolean':
+        return value === 'true';
+      case 'string':
+        return value;
+      default:
+        // Try to parse as JSON if it looks like a complex type
+        if (value.startsWith('{') || value.startsWith('[')) {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return value;
+          }
+        }
+        return value;
+    }
   } catch (error) {
     console.error('Error parsing Aleo value:', error);
-    return null;
+    return value;
   }
-};
+}
 
 // Helper function to format Aleo values
 export function formatAleoValue(value: any): string {

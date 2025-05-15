@@ -1,79 +1,126 @@
 # Snorkle Dashboard
 
-A modern dashboard for viewing and managing Aleo program mappings. Built with Next.js, TypeScript, and Tailwind CSS.
+A Next.js dashboard for monitoring and interacting with Snorkle oracles and events.
+
+## Prerequisites
+
+- Node.js 18.x or later
+- Yarn package manager
+- Docker and Docker Compose (for production deployment)
+
+## Environment Setup
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+NEXT_PUBLIC_ALEO_RPC_URL=https://api.explorer.aleo.org/v1
+NEXT_PUBLIC_ALEO_NETWORK=mainnet
+```
+
+## Development Setup
+
+1. Install dependencies:
+```bash
+yarn install
+```
+
+2. Start the development server:
+```bash
+yarn dev
+```
+
+The application will be available at `http://localhost:3000`
+
+## Building for Production
+
+1. Create a production build:
+```bash
+yarn build
+```
+
+2. Start the production server:
+```bash
+yarn start
+```
+
+## Docker Deployment
+
+1. Build the Docker image:
+```bash
+docker build -t snorkle-dashboard .
+```
+
+2. Run with Docker Compose:
+```bash
+docker-compose up -d
+```
+
+The application will be available at `http://localhost:3000`
+
+## Project Structure
+
+```
+snorkle-dashboard/
+├── src/
+│   ├── app/                 # Next.js app directory
+│   │   ├── components/      # React components
+│   │   └── page.tsx        # Main page
+│   └── lib/                # Utility functions and types
+├── public/                 # Static assets
+├── next.config.mjs        # Next.js configuration
+├── tailwind.config.js     # Tailwind CSS configuration
+└── package.json           # Project dependencies
+```
 
 ## Features
 
-- View all mappings in Aleo programs
-- Paginated data display
-- Real-time data updates
-- Dark mode support
+- View and monitor Snorkle oracles
+- Check attestation verification
+- View event data
+- Real-time updates
 - Responsive design
 
-## Getting Started
+## Dependencies
 
-### Prerequisites
+### Core Dependencies
+- Next.js 14.1.0
+- React 18.2.0
+- Material-UI (@mui/material)
+- Provable SDK (@provablehq/sdk)
 
-- Node.js 18+ and npm
-- Aleo CLI (for local development)
+### Development Dependencies
+- TypeScript
+- ESLint
+- Tailwind CSS
+- PostCSS
 
-### Installation
+## Troubleshooting
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd snorkle-dashboard
-```
+### Common Issues
 
-2. Install dependencies:
-```bash
-npm install
-```
+1. **Build Errors**
+   - Clear the `.next` directory: `rm -rf .next`
+   - Reinstall dependencies: `yarn install`
+   - Rebuild: `yarn build`
 
-3. Create a `.env.local` file with the following variables:
-```
-NEXT_PUBLIC_ALEO_NETWORK=testnet
-NEXT_PUBLIC_ALEO_RPC_URL=https://api.explorer.aleo.org/v1
-```
+2. **Runtime Errors**
+   - Check browser console for detailed error messages
+   - Verify environment variables are set correctly
+   - Ensure all dependencies are installed
 
-4. Start the development server:
-```bash
-npm run dev
-```
-
-## Development
-
-### Project Structure
-
-```
-src/
-├── app/                    # Next.js app directory
-│   ├── components/        # React components
-│   ├── page.tsx          # Main dashboard page
-│   └── layout.tsx        # Root layout
-├── lib/                   # Utility functions
-│   ├── aleo.ts           # Aleo SDK integration
-│   ├── config.ts         # Configuration
-│   └── types.ts          # TypeScript types
-└── tests/                # Test files
-```
-
-### Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run test` - Run tests
-- `npm run lint` - Run linter
+3. **Docker Issues**
+   - Ensure Docker daemon is running
+   - Check port 3000 is not in use
+   - Verify Docker Compose configuration
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file for details
