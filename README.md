@@ -1,6 +1,10 @@
 # snorkle
 snark-friendly oracles on aleo
 
+# Dashboard
+
+The live dashboard for the oracle can be found here: https://snorkle-dashboard-349861721231.northamerica-northeast1.run.app/
+
 
 ## Leo
 
