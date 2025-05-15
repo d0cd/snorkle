@@ -17,9 +17,6 @@ dns-lookup = "2.0"
 tokio-util = { workspace=true, features=["codec"] }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-tdx-guest = { version="0.2" }
-raw-cpuid = "10"
-libc = "0.2"
 schnorrkel = "0.11"
 base64 = "0.22"
 

@@ -17,7 +17,7 @@ pub enum OracleRequest {
 #[derive(Serialize, Deserialize)]
 pub enum OracleResponse {
     Witness(Vec<u8>),
-    OracleInfo(OracleInfo)
+    OracleInfo(OracleInfo),
 }
 
 pub const BINCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();

@@ -19,7 +19,7 @@ use ureq::unversioned::transport::DefaultConnector;
 
 use anyhow::Context;
 
-use snorkle_oracle_api::{BINCODE_CONFIG, OracleInfo, OracleRequest, OracleResponse};
+use snorkle_oracle_api::{OracleInfo, OracleRequest, OracleResponse, BINCODE_CONFIG};
 
 mod http;
 use http::Resolver;
@@ -32,46 +32,21 @@ use sgx_crypto::{
     types::*,
 };
 
-#[cfg(not(target_env = "sgx"))]
+#[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
 use tdx_guest as tdx;
 
-#[cfg(not(target_env = "sgx"))]
-use {
-    ecdsa::SigningKey,
-    p256::SecretKey,
-    rand::rngs::OsRng,
-    sha2::{Digest, Sha256},
-};
+#[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
+use {ecdsa::SigningKey, p256::SecretKey};
 
-use schnorrkel::{Keypair, Signature};
+use sha2::{Digest, Sha256};
 
-use std::process::Command;
+use rand::rngs::OsRng;
+
+use schnorrkel::Keypair;
 
 fn main() -> anyhow::Result<()> {
     let oracle = Oracle::new()?;
     oracle.run()
-}
-
-// Function to run the `trustauthority-cli quote` command
-fn run_trustauthority_cli(user_data: &str) -> anyhow::Result<String> {
-    // Create the command
-    let output = Command::new("sudo")
-        .arg("trustauthority-cli")
-        .arg("quote")
-        .arg("--user-data")
-        .arg(user_data) // Pass user_data argument
-        .output() // Execute the command
-        .with_context(|| "Failed to execute trustauthority-cli")?;
-
-    // Check if the command executed successfully
-    if !output.status.success() {
-        // If the command failed, return the stderr output as an error
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("trustauthority-cli failed: {}", error_msg);
-    }
-
-    // Return the output from the command if successful
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
 struct Oracle {
@@ -79,21 +54,42 @@ struct Oracle {
     info: OracleInfo,
 }
 
+#[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
+mod tdx;
+
 use base64::prelude::*;
 
 impl Oracle {
     #[cfg(target_env = "sgx")]
     pub fn new() -> anyhow::Result<Self> {
-        Ok(Self {})
+        todo!();
     }
 
-    #[cfg(not(target_env = "sgx"))]
+    #[cfg(all(not(target_arch = "x86_64"), not(target_env = "sgx")))]
     pub fn new() -> anyhow::Result<Self> {
         let keypair: Keypair = Keypair::generate_with(OsRng);
         let pubkey = keypair.public.as_compressed();
 
         let key_hash = BASE64_STANDARD.encode(pubkey.as_bytes());
-        let report = BASE64_STANDARD.encode(run_trustauthority_cli(&key_hash)?);
+        let report = BASE64_STANDARD.encode("Hello World");
+
+        println!("Created dummy oracle!");
+        Ok(Self {
+            info: OracleInfo {
+                pubkey: key_hash,
+                report,
+            },
+            keypair,
+        })
+    }
+
+    #[cfg(all(target_arch = "x86_64", not(target_env = "sgx")))]
+    pub fn new() -> anyhow::Result<Self> {
+        let keypair: Keypair = Keypair::generate_with(OsRng);
+        let pubkey = keypair.public.as_compressed();
+
+        let key_hash = BASE64_STANDARD.encode(pubkey.as_bytes());
+        let report = BASE64_STANDARD.encode(tdx::generate_report(&key_hash)?);
 
         println!("Keypair and Trust Domain set up!");
         Ok(Self {
@@ -177,16 +173,16 @@ impl Oracle {
 
         // Generate hash of the body
         let body = response.body_mut().read_to_string()?;
-        let hash = {
-            let mut hasher = Sha256::new();
-            hasher.update(body.as_bytes());
-            hasher.finalize()
-        };
-
         // Sign the hash
         let signature = {
             #[cfg(target_env = "sgx")]
             {
+                let hash = {
+                    let mut hasher = Sha256::new();
+                    hasher.update(body.as_bytes());
+                    hasher.finalize()
+                };
+
                 // Use enclave's private key
                 let ecc_handle = EccHandle::new()?;
                 let private_key = ecc_handle.get_private_key()?;
@@ -194,11 +190,9 @@ impl Oracle {
             }
             #[cfg(not(target_env = "sgx"))]
             {
-                // Generate random key
-                let mut rng = OsRng;
-                let secret_key = SecretKey::random(&mut rng);
-                let signing_key = SigningKey::from(secret_key);
-                let (signature, _) = signing_key.sign_prehash_recoverable(&hash)?;
+                let signature = self
+                    .keypair
+                    .sign_simple("oracle statment".as_bytes(), body.as_bytes());
                 signature.to_bytes().to_vec()
             }
         };
