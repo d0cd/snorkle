@@ -34,6 +34,11 @@ impl<N: Network> Oracle<N> {
         let query = Some(snarkvm::prelude::query::Query::from(
             "https://api.explorer.provable.com/v1",
         ));
+
+        #[cfg(feature = "reuse-vm")]
+        let vm = &self.vm;
+
+        #[cfg(not(feature = "reuse-vm"))]
         let vm = Self::init_vm()?;
 
         // Add the oracle program to the process.
